@@ -14,8 +14,8 @@ enum class EventType {
 class Event {
 public:
     EventType type;
-    float timestamp; // Time at which the event occurs
-    Event(float timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr);
+    double timestamp; // Time at which the event occurs
+    Event(double timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr);
     Request* request; // Associated request for arrival and departure events
     Thread* thread; // Associated thread for thread arrival and thread process events
 };

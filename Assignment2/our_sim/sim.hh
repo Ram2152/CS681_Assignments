@@ -4,11 +4,13 @@
 #include "common.hh"
 
 class Sim {
-    int last_arrival_time = 0;
+    int num_users;
+    double timeout;
+    double max_time;
     Receiver receiver;
     Worker worker;
     std::priority_queue<Event*, std::vector<Event*>, EventComparator> event_queue;
-    Distribution* inter_arrival_time_dist;
+    Distribution* think_time_dist;
     Distribution* service_time_dist;
     // Store all requests for statistics
     std::vector<Request*> all_requests;

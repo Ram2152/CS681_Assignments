@@ -7,10 +7,12 @@ class Request{
     inline static int id_counter = 0;
 public:
     int id;
+    int user_id;
+    bool timed_out;
     double arrival_time;
     double service_time;
     double departure_time;
-    Request(double arrival_time, double service_time);
+    Request(int user_id, double arrival_time, double service_time);
     ~Request();
 };
 
