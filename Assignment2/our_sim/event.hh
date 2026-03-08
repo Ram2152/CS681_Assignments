@@ -12,10 +12,16 @@ enum class EventType {
 };
 
 class Event {
-    float timestamp; // Time at which the event occurs
-    EventType type;
 public:
+    EventType type;
+    float timestamp; // Time at which the event occurs
     Event(float timestamp, EventType type);
+};
+
+struct EventComparator {
+    bool operator()(Event* a, Event* b) {
+        return a->timestamp > b->timestamp; // Min-heap based on timestamp
+    }
 };
 
 #endif
