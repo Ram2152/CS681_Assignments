@@ -44,40 +44,39 @@ public:
 
 class Worker{
 public:
-    std::queue<Thread*> thread_queue;
-    int thread_buffer_size;
     int total_cores;
+    int thread_buffer_size;
     int busy_cores;
+    std::queue<Thread*> thread_queue;
     Worker(int total_cores, int thread_buffer_size);
     ~Worker();
 };
 
 class Distribution{
 public:
-    virtual double sample();
-    Distribution();
-    ~Distribution();
+    virtual double sample() = 0; // Pure virtual function to sample from the distribution
+    virtual ~Distribution() = default; // Virtual destructor for proper cleanup of derived classes
 };
 
 class ExponentialDistribution : public Distribution{
-    double mean;
 public:
+    double mean;
     ExponentialDistribution(double mean);
     ~ExponentialDistribution();
     double sample() override;
 };
 
 class UniformDistribution : public Distribution{
-    double a, b;
 public:
+    double a, b;
     UniformDistribution(double a, double b);
     ~UniformDistribution();
     double sample() override;
 };
 
 class ConstDistribution : public Distribution{
-    double value;
 public:
+    double value;
     ConstDistribution(double value);
     ~ConstDistribution();
     double sample() override;

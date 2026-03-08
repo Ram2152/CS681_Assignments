@@ -8,8 +8,8 @@ class Sim {
     Receiver receiver;
     Worker worker;
     std::priority_queue<Event*, std::vector<Event*>, EventComparator> event_queue;
-    Distribution inter_arrival_time_dist;
-    Distribution service_time_dist;
+    Distribution* inter_arrival_time_dist;
+    Distribution* service_time_dist;
     // Store all requests for statistics
     std::vector<Request*> all_requests;
 public:

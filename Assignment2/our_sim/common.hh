@@ -3,8 +3,8 @@
 
 #include "utils.hh"
 #include "event.hh"
-#include "sim.hh"
 #include "config.hh"
+#include "sim.hh"
 #include <string>
 
 #endif

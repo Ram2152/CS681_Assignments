@@ -18,7 +18,7 @@ public:
     int thread_buffer_size;
     TimeDistributionType arrival_time_distribution;
     TimeDistributionType service_time_distribution;
-    Config(std::string input_file);
+    Config(std::string input_file_name);
 };
 
 #endif

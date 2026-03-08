@@ -1,6 +1,8 @@
 #include "common.hh"
 
-Config::Config(std::string input_file) {
+Config::Config(std::string input_file_name) {
+    Config::input_file = input_file_name;
+
     std::ifstream config_file(input_file);
     if (!config_file.is_open()) {
         std::cerr << "Error opening config file!" << std::endl;
