@@ -1,7 +1,8 @@
-#include "commons.hh"
+#include "common.hh"
 
 Request::Request(double arrival_time, double service_time) : arrival_time(arrival_time), service_time(service_time) {
     id = id_counter++;
+    departure_time = -1; // Initialize departure time to -1 to indicate it hasn't departed yet
 }
 
 Thread::Thread(){
@@ -26,9 +27,18 @@ Thread* ThreadPool::find_idle_thread(){
     return nullptr;
 }
 
-Receiver::Receiver(int num_threads) : thread_pool(num_threads) {}
+bool ThreadPool::has_idle_thread(){
+    for(Thread* thread : threads){
+        if(thread->idle()){
+            return true;
+        }
+    }
+    return false;
+}
 
-Worker::Worker(int total_cores) : total_cores(total_cores), busy_cores(0) {};
+Receiver::Receiver(int num_threads, int receiver_buffer_size) : thread_pool(num_threads), receiver_buffer_size(receiver_buffer_size) {}
+
+Worker::Worker(int total_cores, int thread_buffer_size) : total_cores(total_cores), thread_buffer_size(thread_buffer_size), busy_cores(0) {};
 
 ExponentialDistribution::ExponentialDistribution(double mean) : mean(mean) {}
 UniformDistribution::UniformDistribution(double a, double b) : a(a), b(b) {}

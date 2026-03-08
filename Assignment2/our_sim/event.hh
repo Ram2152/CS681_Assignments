@@ -15,11 +15,17 @@ class Event {
 public:
     EventType type;
     float timestamp; // Time at which the event occurs
-    Event(float timestamp, EventType type);
+    Event(float timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr);
+    Request* request; // Associated request for arrival and departure events
+    Thread* thread; // Associated thread for thread arrival and thread process events
 };
 
 struct EventComparator {
     bool operator()(Event* a, Event* b) {
+        if (a->timestamp == b->timestamp) {
+            // Departure should be prioritized over arrival if they occur at the same time to free up threads for waiting requests
+            return a->type == EventType::DEPARTURE;
+        }
         return a->timestamp > b->timestamp; // Min-heap based on timestamp
     }
 };
