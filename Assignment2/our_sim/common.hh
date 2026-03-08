@@ -1,3 +1,4 @@
+#include "utils.hh"
 #include "event.hh"
 #include "sim.hh"
 #include "utils.hh"

@@ -48,4 +48,35 @@ public:
     ~Worker();
 };
 
+class Distribution{
+public:
+    virtual double sample();
+    Distribution();
+    ~Distribution();
+};
+
+class ExponentialDistribution : public Distribution{
+    double mean;
+public:
+    ExponentialDistribution(double mean);
+    ~ExponentialDistribution();
+    double sample() override;
+};
+
+class UniformDistribution : public Distribution{
+    double a, b;
+public:
+    UniformDistribution(double a, double b);
+    ~UniformDistribution();
+    double sample() override;
+};
+
+class ConstDistribution : public Distribution{
+    double value;
+public:
+    ConstDistribution(double value);
+    ~ConstDistribution();
+    double sample() override;
+};
+
 #endif
