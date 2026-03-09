@@ -4,21 +4,22 @@
 #include <bits/stdc++.h>
 
 class Request{
-    inline static int id_counter = 0;
 public:
+    inline static int id_counter = 0;
     int id;
     int user_id;
     bool timed_out;
     double arrival_time;
     double service_time;
+    double remaining_service_time;
     double departure_time;
     Request(int user_id, double arrival_time, double service_time);
     ~Request();
 };
 
 class Thread{
-    inline static int id_counter = 0;
 public:
+    inline static int id_counter = 0;
     int id;
     Request *current_request;
     Thread();
@@ -44,13 +45,31 @@ public:
     ~Receiver();
 };
 
+class Core{
+public:
+    inline static int id_counter = 0;
+    int id;
+    bool busy;
+    int thread_buffer_size;
+    double core_context_switch_time;
+    double core_context_switch_overhead;
+    std::queue<Thread*> thread_buffer;
+    Core(int thread_buffer_size, double core_context_switch_time, double core_context_switch_overhead);
+    ~Core();
+};
+
 class Worker{
 public:
     int total_cores;
     int thread_buffer_size;
     int busy_cores;
+    double core_context_switch_time;
+    double core_context_switch_overhead;
+    std::vector<Core*> cores;
     std::queue<Thread*> thread_queue;
-    Worker(int total_cores, int thread_buffer_size);
+    Worker(int total_cores, int thread_buffer_size, int core_buffer_size, double core_context_switch_time, double core_context_switch_overhead);
+    bool has_free_core();
+    Core* find_free_core();
     ~Worker();
 };
 

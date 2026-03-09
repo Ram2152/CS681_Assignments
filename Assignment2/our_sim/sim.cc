@@ -1,6 +1,6 @@
 #include "common.hh"
 
-Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), max_time(config.max_time), receiver(config.num_threads, config.request_buffer_size), worker(config.total_cores, config.thread_buffer_size) {
+Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), max_time(config.max_time), receiver(config.num_threads, config.request_buffer_size), worker(config.total_cores, config.thread_buffer_size, config.core_buffer_size, config.core_context_switch_time, config.core_context_switch_overhead) {
     std::ifstream config_file(config.input_file);
     if (!config_file.is_open()) {
         std::cerr << "Error opening config file!" << std::endl;
@@ -9,7 +9,7 @@ Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), 
 
     std::string think_dist, service_dist;
     int num_of_runs;
-    config_file >> num_of_runs >> config.num_threads >> config.total_cores >> config.num_users >> config.timeout >> config.max_time >> config.request_buffer_size >> config.thread_buffer_size >> think_dist >> service_dist;
+    config_file >> num_of_runs >> config.num_threads >> config.total_cores >> config.num_users >> config.timeout >> config.max_time >> config.request_buffer_size >> config.thread_buffer_size >> config.core_buffer_size >> config.core_context_switch_time >> config.core_context_switch_overhead >> think_dist >> service_dist;
 
     // Initialize distributions based on config
     if (config.think_time_distribution == TimeDistributionType::UNIFORM) {
@@ -50,10 +50,28 @@ void Sim::run() {
         event_queue.push(arrival_event);
     }
 
+    std::ofstream output_file("event_log.txt");
+
+    output_file << "------------------------" << std::endl;
+
     while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
+        output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
         Event* current_event = event_queue.top();
         event_queue.pop();
+        // Print the current event details to the output file
+        output_file << "Event Type: " << event_type_to_string(current_event->type) << std::endl;
+        // Print request id, thread id, core id if they exist
+        if (current_event->request) {
+            output_file << "Request ID: " << current_event->request->id << std::endl;
+        }
+        if (current_event->thread) {
+            output_file << "Thread ID: " << current_event->thread->id << std::endl;
+        }
+        if (current_event->core) {
+            output_file << "Core ID: " << current_event->core->id << std::endl;
+        }
 
+        output_file << "------------------------" << std::endl;
         // Process the current event based on its type
         switch (current_event->type) {
             case EventType::ARRIVAL: {
@@ -85,62 +103,113 @@ void Sim::run() {
                 }
                 break;
             }
+            // In Thread Arrival event
+            // If there is a free core, and the core has no threads yet, the thread starts processing immediately (schedule a thread process event that decides if it will context switch or depart)
+            // If there is a free core, but the core already has threads in its buffer, or is busy processing another thread, the thread goes into the core's thread buffer
+            // If there is no free core, the thread goes into the worker's thread queue if there is space, otherwise it is dropped (not added to the queue)
             case EventType::THREAD_ARRIVAL: {
-                // When a thread arrives, it goes into the worker's thread queue if there are no free cores, otherwise it starts processing immediately
-                if (worker.busy_cores < worker.total_cores) {
-                    // Make a thread process event immediately for this thread
-                    Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread);
-                    event_queue.push(thread_process_event);
+                if (worker.has_free_core()) {
+                    Core* assigned_core = worker.find_free_core();
+                    if (!assigned_core->busy && assigned_core->thread_buffer.empty()) {
+                        // Schedule a thread process event for this thread to start processing
+                        Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread, assigned_core);
+                        event_queue.push(thread_process_event);
+                    } else {
+                        assigned_core->thread_buffer.push(current_event->thread);
+                    }
                 } else {
-                    // If worker buffer is full, then the thread is dropped (not added to the queue)
+                    // No free core available, try to add the thread to the worker's thread queue
                     if ((int)worker.thread_queue.size() < worker.thread_buffer_size) {
                         worker.thread_queue.push(current_event->thread);
                     } else {
-                        // Thread is dropped, we can log this if needed (thread is freed but request is not processed, we can consider this as a request drop as well)
-                        current_event->thread->current_request = nullptr; // Free the thread
+                        // Thread is dropped, we can log this if needed
+                        // Free the thread since it cannot be processed
+                        current_event->thread->current_request = nullptr;
                     }
+                }                
+                break;
+            }
+            // If the service time remaining for the request is less than the core context switch time, the thread will finish processing and schedule a departure event
+            // If the service time remaining for the request is greater than or equal to the core context switch time, the thread will be preempted after the context switch time and put back into the core's thread buffer, and a context switch event will be scheduled
+            case EventType::THREAD_PROCESS: {
+                double service_time_remaining = current_event->request->remaining_service_time;
+                if (service_time_remaining <= current_event->core->core_context_switch_time) {
+                    // Schedule departure event
+                    Event* departure_event = new Event(current_event->timestamp + service_time_remaining, EventType::DEPARTURE, current_event->request, current_event->thread, current_event->core);
+                    event_queue.push(departure_event);
+                    current_event->core->busy = true;
+                    worker.busy_cores++;
+                    current_event->request->remaining_service_time = 0;
+                } else {
+                    // Schedule context switch event
+                    Event* context_switch_event = new Event(current_event->timestamp + current_event->core->core_context_switch_time, EventType::CONTEXT_SWITCH, current_event->request, current_event->thread, current_event->core);
+                    event_queue.push(context_switch_event);
+                    current_event->core->busy = true;
+                    worker.busy_cores++;
+                    current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
                 }
                 break;
             }
-            case EventType::THREAD_PROCESS: {
-                // Schedule departure event for the request being processed by this thread
-                worker.busy_cores++;
-                double departure_time = current_event->timestamp + current_event->thread->current_request->service_time;
-                Event* departure_event = new Event(departure_time, EventType::DEPARTURE, current_event->thread->current_request, current_event->thread);
-                event_queue.push(departure_event);
-                break;
+            // If there are threads waiting in the core's thread buffer, we pop the next thread and schedule a thread process event for it after core context switch overhead time (since the core will be busy with context switching for that duration and cannot start processing the next thread until then)
+            // If there are no threads waiting in the core's thread buffer, we schedule a thread process event for the current thread instantly
+            case EventType::CONTEXT_SWITCH: {
+                if (!current_event->core->thread_buffer.empty()) {
+                    Thread* next_thread = current_event->core->thread_buffer.front();
+                    current_event->core->thread_buffer.pop();
+                    Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core);
+                    event_queue.push(thread_process_event);
+                    current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
+                } else {
+                    // No waiting threads in the core's buffer, schedule a thread process event for the current thread to continue processing immediately
+                    Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread, current_event->core);
+                    event_queue.push(thread_process_event);
+                }
+                break;                
             }
+            // Before everything, assign the departure time for the request as the current event timestamp, since the request is departing at this time
+            // If there is a thread waiting in the core's thread buffer, we schedule a thread process event for that thread to start processing immediately
+            // If there are no threads waiting in the core's thread buffer, we mark the core as not busy and decrease the count of busy cores in the worker
+            // After that, if there are threads waiting in the worker's thread queue, we pop the next thread and assign it to the core that just got free
+            // Note that we don't schedule any event for the thread that we pop from the worker's thread queue, since that thread is already in the core's thread buffer and will be scheduled to process when it reaches the front of the buffer
+            // If there is a request waiting in the receiver's request queue, we assign it to the thread that just got free and schedule a thread arrival event for that thread to enter the core buffer
+            // Make a arrival event for the same user after think time
             case EventType::DEPARTURE: {
-                // Assign departure time to the request
                 current_event->request->departure_time = current_event->timestamp;
-                // Free the thread
-                current_event->thread->current_request = nullptr;
+                current_event->core->busy = false;
                 worker.busy_cores--;
-
-                // Schedule arrival of the next request from the same user after think time
-                double next_arrival_time = current_event->timestamp + think_time_dist->sample();
-                Request* next_request = new Request(current_event->request->user_id, next_arrival_time, service_time_dist->sample());
-                Event* next_arrival_event = new Event(next_arrival_time, EventType::ARRIVAL, next_request);
-                event_queue.push(next_arrival_event);
-                
-                // If there are waiting threads in the worker's thread queue, create a thread process event for the next thread in the queue
+                current_event->thread->current_request = nullptr; // Free the thread
+                if (!current_event->core->thread_buffer.empty()) {
+                    Thread* next_thread = current_event->core->thread_buffer.front();
+                    current_event->core->thread_buffer.pop();
+                    Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core);
+                    event_queue.push(thread_process_event);
+                    worker.busy_cores++;
+                    current_event->core->busy = true;
+                }
                 if (!worker.thread_queue.empty()) {
                     Thread* next_thread = worker.thread_queue.front();
                     worker.thread_queue.pop();
-                    Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread);
-                    event_queue.push(thread_process_event);
-                }
-                
-                // If there are waiting requests in the receiver's request queue, assign the next request to an idle thread and schedule a thread arrival event
+                    current_event->core->thread_buffer.push(next_thread);
+                    if (!current_event->core->busy) {
+                        Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core);
+                        event_queue.push(thread_process_event);
+                        worker.busy_cores++;
+                        current_event->core->busy = true;
+                    }
+                } 
                 if (!receiver.request_queue.empty()) {
                     Request* next_request = receiver.request_queue.front();
                     receiver.request_queue.pop();
-                    // Find an idle thread and assign the request to it
                     Thread* idle_thread = receiver.thread_pool.find_idle_thread();
                     idle_thread->current_request = next_request;
                     Event* thread_arrival_event = new Event(current_event->timestamp, EventType::THREAD_ARRIVAL, next_request, idle_thread);
                     event_queue.push(thread_arrival_event);
                 }
+                // Schedule next arrival event for the same user after think time
+                double think_time = think_time_dist->sample();
+                Request* new_request = new Request(current_event->request->user_id, current_event->timestamp + think_time, service_time_dist->sample());
+                Event* arrival_event = new Event(current_event->timestamp + think_time, EventType::ARRIVAL, new_request);
+                event_queue.push(arrival_event);
                 break;
             }
         }
@@ -154,6 +223,15 @@ void Sim::run() {
         event_queue.pop();
     }
 
+    // Clean up the cores and threads in the worker and receiver
+    for (Core* core : worker.cores) {
+        while (!core->thread_buffer.empty()) {
+            Thread* thread = core->thread_buffer.front();
+            core->thread_buffer.pop();
+            thread->current_request = nullptr; // Free the thread
+        }
+    }
+
     receiver.request_queue = std::queue<Request*>();
     worker.thread_queue = std::queue<Thread*>();
 
@@ -164,6 +242,10 @@ void Sim::run() {
 
     // Number of busy cores at the end of the simulation should be 0
     worker.busy_cores = 0;
+    Request::id_counter = 0;
+    Thread::id_counter = 0;
+
+    output_file.close();
 }
 
 void Sim::print_config() {
@@ -174,6 +256,9 @@ void Sim::print_config() {
     std::cout << "Total Cores: " << worker.total_cores << std::endl;
     std::cout << "Request Buffer Size: " << receiver.receiver_buffer_size << std::endl;
     std::cout << "Thread Buffer Size: " << worker.thread_buffer_size << std::endl;
+    std::cout << "Core Buffer Size: " << worker.cores[0]->thread_buffer_size << std::endl;
+    std::cout << "Core Context Switch Time: " << worker.core_context_switch_time << std::endl;
+    std::cout << "Core Context Switch Overhead: " << worker.core_context_switch_overhead << std::endl;
     std::cout << "Number of Users: " << num_users << std::endl;
     std::cout << "Timeout: " << timeout << std::endl;
     std::cout << "Max Simulation Time: " << max_time << std::endl;

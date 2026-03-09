@@ -7,17 +7,21 @@ enum class EventType {
     ARRIVAL, // Request arrives into request buffer and waits for a free thread to assign
     DEPARTURE, // Request departs from the system after processing is done and thread is freed
     TIMEOUT, 
+    CONTEXT_SWITCH, // Context switch occurs for a thread when it is preempted from a core and put back into the thread buffer
     THREAD_ARRIVAL, // Thread arrives into thread buffer
     THREAD_PROCESS // Thread enters server and starts processing a request
 };
+
+std::string event_type_to_string(EventType type);
 
 class Event {
 public:
     EventType type;
     double timestamp; // Time at which the event occurs
-    Event(double timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr);
+    Event(double timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr, Core* core = nullptr);
     Request* request; // Associated request for arrival and departure events
     Thread* thread; // Associated thread for thread arrival and thread process events
+    Core* core; // Associated core for context switch events
 };
 
 struct EventComparator {

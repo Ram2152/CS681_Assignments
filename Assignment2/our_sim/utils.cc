@@ -1,6 +1,6 @@
 #include "common.hh"
 
-Request::Request(int user_id, double arrival_time, double service_time) : user_id(user_id), arrival_time(arrival_time), service_time(service_time) {
+Request::Request(int user_id, double arrival_time, double service_time) : user_id(user_id), arrival_time(arrival_time), service_time(service_time), remaining_service_time(service_time) {
     id = id_counter++;
     timed_out = false;
     departure_time = -1; // Initialize departure time to -1 to indicate it hasn't departed yet
@@ -51,11 +51,51 @@ Receiver::Receiver(int num_threads, int receiver_buffer_size) : thread_pool(num_
 
 Receiver::~Receiver() {}
 
-Worker::Worker(int total_cores, int thread_buffer_size) : total_cores(total_cores), thread_buffer_size(thread_buffer_size), busy_cores(0) {};
+Worker::Worker(int total_cores, int thread_buffer_size, int core_buffer_size, double core_context_switch_time, double core_context_switch_overhead) : total_cores(total_cores), thread_buffer_size(thread_buffer_size), busy_cores(0), core_context_switch_time(core_context_switch_time), core_context_switch_overhead(core_context_switch_overhead) {
+    for(int i = 0; i < total_cores; i++){
+        cores.emplace_back(new Core(core_buffer_size, core_context_switch_time, core_context_switch_overhead));
+    }
+}
 
 Worker::~Worker() {
     while (!thread_queue.empty()) {
         thread_queue.pop();
+    }
+}
+
+// If some core has free buffer space for threads, we can consider that core as a free core (even if it is currently busy processing a thread, it can still accept more threads in its buffer)
+
+bool Worker::has_free_core() {
+    for (Core* core : cores) {
+        if (!core->busy || (int)core->thread_buffer.size() < core->thread_buffer_size) {
+            return true;
+        }
+    }
+    return false;
+}
+
+Core* Worker::find_free_core() {
+    Core* idle_core = nullptr;
+    int min_buffer_size = std::numeric_limits<int>::max();
+    for (Core* core : cores) {
+        if (!core->busy) {
+            return core; // If we find a completely idle core, return it immediately
+        }
+        if ((int)core->thread_buffer.size() < min_buffer_size) {
+            idle_core = core;
+            min_buffer_size = core->thread_buffer.size();
+        }
+    }
+    return idle_core;
+}
+
+Core::Core(int thread_buffer_size, double core_context_switch_time, double core_context_switch_overhead) : busy(false), thread_buffer_size(thread_buffer_size), core_context_switch_time(core_context_switch_time), core_context_switch_overhead(core_context_switch_overhead) {
+    id = id_counter++;
+}
+
+Core::~Core() {
+    while (!thread_buffer.empty()) {
+        thread_buffer.pop();
     }
 }
 

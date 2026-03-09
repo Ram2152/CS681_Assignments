@@ -12,7 +12,7 @@ Config::Config(std::string input_file_name) {
     // Thread count, core count, think time distribution, service time distribution
     std::string think_dist, service_dist;
     int num_of_runs;
-    config_file >> num_of_runs >> num_threads >> total_cores >> num_users >> timeout >> max_time >> request_buffer_size >> thread_buffer_size >> think_dist >> service_dist;
+    config_file >> num_of_runs >> num_threads >> total_cores >> num_users >> timeout >> max_time >> request_buffer_size >> thread_buffer_size >> core_buffer_size >> core_context_switch_time >> core_context_switch_overhead >> think_dist >> service_dist;
 
     if (think_dist == "UNIFORM") {
         think_time_distribution = TimeDistributionType::UNIFORM;

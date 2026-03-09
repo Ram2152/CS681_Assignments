@@ -10,7 +10,7 @@ enum class TimeDistributionType {
 };
 
 // Config file format:
-// number_of_runs num_threads total_cores num_users timeout max_time request_buffer_size thread_buffer_size think_dist service_dist [think_dist_params] [service_dist_params]
+// number_of_runs num_threads total_cores num_users timeout max_time request_buffer_size thread_buffer_size core_buffer_size core_context_switch_time core_context_switch_overhead think_dist service_dist [think_dist_params] [service_dist_params]
 
 class Config {
 public:
@@ -21,7 +21,10 @@ public:
     double timeout;
     double max_time;
     int request_buffer_size;
+    int core_buffer_size;
     int thread_buffer_size;
+    double core_context_switch_time;
+    double core_context_switch_overhead;
     TimeDistributionType think_time_distribution;
     TimeDistributionType service_time_distribution;
     Config(std::string input_file_name);
