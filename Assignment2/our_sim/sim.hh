@@ -18,7 +18,7 @@ public:
     Sim(Config config);
     void print_config();
     void run();
-    void print_stats();
+    std::tuple<double, double, double, double, double, double> print_stats();
     ~Sim();
 };
 

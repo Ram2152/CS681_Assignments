@@ -8,7 +8,8 @@ Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), 
     }
 
     std::string think_dist, service_dist;
-    config_file >> config.num_threads >> config.total_cores >> config.num_users >> config.timeout >> config.max_time >> config.request_buffer_size >> config.thread_buffer_size >> think_dist >> service_dist;
+    int num_of_runs;
+    config_file >> num_of_runs >> config.num_threads >> config.total_cores >> config.num_users >> config.timeout >> config.max_time >> config.request_buffer_size >> config.thread_buffer_size >> think_dist >> service_dist;
 
     // Initialize distributions based on config
     if (config.think_time_distribution == TimeDistributionType::UNIFORM) {
@@ -38,7 +39,9 @@ Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), 
         config_file >> constant_time;
         service_time_dist = new ConstDistribution(constant_time);
     }
+}
 
+void Sim::run() {
     // Schedule initial arrival events for all users
     double current_time = 0;
     for (int i = 0; i < num_users; i++) {
@@ -46,9 +49,7 @@ Sim::Sim(Config config) : num_users(config.num_users), timeout(config.timeout), 
         Event* arrival_event = new Event(current_time, EventType::ARRIVAL, new_request);
         event_queue.push(arrival_event);
     }
-}
 
-void Sim::run() {
     while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
         Event* current_event = event_queue.top();
         event_queue.pop();
@@ -146,6 +147,23 @@ void Sim::run() {
         
         delete current_event; // Clean up the processed event
     }
+
+    // Clean up dynamically allocated events in the event queue
+    while (!event_queue.empty()) {
+        delete event_queue.top();
+        event_queue.pop();
+    }
+
+    receiver.request_queue = std::queue<Request*>();
+    worker.thread_queue = std::queue<Thread*>();
+
+    // Free all threads
+    for (Thread* thread : receiver.thread_pool.threads) {
+        thread->current_request = nullptr;
+    }
+
+    // Number of busy cores at the end of the simulation should be 0
+    worker.busy_cores = 0;
 }
 
 void Sim::print_config() {
@@ -193,7 +211,7 @@ void Sim::print_config() {
     std::cout << std::endl;
 }
 
-void Sim::print_stats() {
+std::tuple<double, double, double, double, double, double> Sim::print_stats() {
     // Calculate and print statistics such as average response time, throughput, etc.
     double total_response_time = 0;
     int bad_completed_requests = 0;
@@ -215,32 +233,31 @@ void Sim::print_stats() {
         }
     }
     double average_response_time = (good_completed_requests + bad_completed_requests) > 0 ? total_response_time / (good_completed_requests + bad_completed_requests) : 0;
-    std::cout << "======================" << std::endl;
-    std::cout << "Simulation Statistics:" << std::endl;
-    std::cout << "======================" << std::endl;
-    std::cout << "Average Response Time: " << average_response_time << " sec" << std::endl;
-    std::cout << "-----------------------" << std::endl;
-    std::cout << "Goodput: " << good_completed_requests / max_time << " req/sec" << std::endl;
-    std::cout << "Badput: " << bad_completed_requests / max_time << " req/sec" << std::endl;
-    std::cout << "Throughput: " << (good_completed_requests + bad_completed_requests) / max_time << " req/sec" << std::endl;
-    std::cout << "-----------------------" << std::endl;
-    std::cout << "Average CPU Utilization: " << total_cpu_time / max_time << "%" << std::endl;
-    std::cout << "-----------------------" << std::endl;
-    std::cout << "Request Drop Rate: " << dropped_requests / max_time << " req/sec" << std::endl;
-    std::cout << "======================" << std::endl;
-}
-
-Sim::~Sim() {
-    // Clean up dynamically allocated events in the event queue
-    while (!event_queue.empty()) {
-        delete event_queue.top();
-        event_queue.pop();
-    }
-    delete think_time_dist;
-    delete service_time_dist;
+    // std::cout << "======================" << std::endl;
+    // std::cout << "Simulation Statistics:" << std::endl;
+    // std::cout << "======================" << std::endl;
+    // std::cout << "Average Response Time: " << average_response_time << " sec" << std::endl;
+    // std::cout << "-----------------------" << std::endl;
+    // std::cout << "Goodput: " << good_completed_requests / max_time << " req/sec" << std::endl;
+    // std::cout << "Badput: " << bad_completed_requests / max_time << " req/sec" << std::endl;
+    // std::cout << "Throughput: " << (good_completed_requests + bad_completed_requests) / max_time << " req/sec" << std::endl;
+    // std::cout << "-----------------------" << std::endl;
+    // std::cout << "Average CPU Utilization: " << total_cpu_time / max_time << "%" << std::endl;
+    // std::cout << "-----------------------" << std::endl;
+    // std::cout << "Request Drop Rate: " << dropped_requests / max_time << " req/sec" << std::endl;
+    // std::cout << "======================" << std::endl;
 
     // Clean up all requests
     for (Request* request : all_requests) {
         delete request;
     }
+
+    all_requests.clear();
+
+    return {average_response_time, good_completed_requests / max_time, bad_completed_requests / max_time, (good_completed_requests + bad_completed_requests) / max_time, total_cpu_time / max_time, dropped_requests / max_time};
+}
+
+Sim::~Sim() {
+    delete think_time_dist;
+    delete service_time_dist;
 }

@@ -10,7 +10,7 @@ enum class TimeDistributionType {
 };
 
 // Config file format:
-// num_threads total_cores num_users timeout max_time request_buffer_size thread_buffer_size think_dist service_dist [think_dist_params] [service_dist_params]
+// number_of_runs num_threads total_cores num_users timeout max_time request_buffer_size thread_buffer_size think_dist service_dist [think_dist_params] [service_dist_params]
 
 class Config {
 public:
