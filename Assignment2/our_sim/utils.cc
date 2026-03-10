@@ -102,10 +102,15 @@ Core::~Core() {
 ExponentialDistribution::ExponentialDistribution(double mean) : mean(mean) {}
 UniformDistribution::UniformDistribution(double a, double b) : a(a), b(b) {}
 ConstDistribution::ConstDistribution(double value) : value(value) {}
+MultinomialDistribution::MultinomialDistribution(const std::vector<double>& probs)
+    : probabilities(probs),
+      gen(std::random_device{}()),
+      dist(probabilities.begin(), probabilities.end()) {}
 
 ExponentialDistribution::~ExponentialDistribution() {}
 UniformDistribution::~UniformDistribution() {}
 ConstDistribution::~ConstDistribution() {}
+MultinomialDistribution::~MultinomialDistribution() {}
 
 double ExponentialDistribution::sample() {
     std::random_device rd;
@@ -123,4 +128,8 @@ double UniformDistribution::sample() {
 
 double ConstDistribution::sample() {
     return value;
+}
+
+int MultinomialDistribution::sample() {
+    return dist(gen);
 }

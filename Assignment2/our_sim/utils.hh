@@ -103,4 +103,16 @@ public:
     double sample() override;
 };
 
+class MultinomialDistribution {
+private:
+    std::vector<double> probabilities;
+    std::mt19937 gen;
+    std::discrete_distribution<> dist;
+
+public:
+    MultinomialDistribution(const std::vector<double>& probs);
+    ~MultinomialDistribution();
+    int sample();
+};
+
 #endif
