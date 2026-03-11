@@ -1,4 +1,4 @@
-#include "config.hh"
+#include "common.hh"
 
 // Config file format:
 // num_nodes max_time
@@ -8,7 +8,7 @@
 // If server: num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_distribution_type, service_time_distribution_params
 // Adjacency Matrix (num_nodes x num_nodes) : containing probabilities of routing from node i to node j
 
-NetworkSim::NetworkSim(std::string input_file) :  {
+NetworkSim::NetworkSim(std::string input_file) {
     std::ifstream config_file(input_file);
     if (!config_file.is_open()) {
         std::cerr << "Error opening config file!" << std::endl;
@@ -81,33 +81,35 @@ NetworkSim::NetworkSim(std::string input_file) :  {
 
     // fill next_nodes and next_node_dist for each node based on the adjacency matrix
     for (ClientNode* client_node : client_nodes) {
+        std::vector<double> probs;
         for (ClientNode* other_client_node : client_nodes) {
             double prob;
             config_file >> prob;
-            client_node->next_node_dist.push_back(prob);
+            probs.push_back(prob);
             client_node->next_nodes.push_back(other_client_node);
         }
         for (ServerNode* server_node : server_nodes) {
             double prob;
             config_file >> prob;
-            client_node->next_node_dist.push_back(prob);
+            probs.push_back(prob);
             client_node->next_nodes.push_back(server_node);
         }
+        client_node->next_node_dist = std::discrete_distribution<int>(probs.begin(), probs.end());
     }
     for (ServerNode* server_node : server_nodes) {
+        std::vector<double> probs;
         for (ClientNode* client_node : client_nodes) {
             double prob;
             config_file >> prob;
-            server_node->next_node_dist.push_back(prob);
+            probs.push_back(prob);
             server_node->next_nodes.push_back(client_node);
         }
         for (ServerNode* other_server_node : server_nodes) {
             double prob;
             config_file >> prob;
-            server_node->next_node_dist.push_back(prob);
+            probs.push_back(prob);
             server_node->next_nodes.push_back(other_server_node);
         }
+        server_node->next_node_dist = std::discrete_distribution<int>(probs.begin(), probs.end());
     }
-               
-
 }

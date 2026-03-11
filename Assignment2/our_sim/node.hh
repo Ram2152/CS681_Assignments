@@ -1,7 +1,6 @@
 #ifndef NODE_HH
 #define NODE_HH
 
-//Now, I am planning to extend this to Queuing Network. Where there is one client node, multiple junctions, multiple server machine (worker in my code). So, create a Node class that has child classes, Worker node, Junction node, Client node. Node class will have pointer to next node. Worker node will have a Worker and Receiver inside of it. Junction node will have a list of next possible nodes from that junction with a probability associated with them. Junction node also has a Multinomial distribution to decide which route the request will take from the Junction. Client node has nothing so far. Plan this and create a system design for this.
 #include "common.hh"
 
 class Node {
@@ -12,7 +11,7 @@ public:
     std::discrete_distribution<int> next_node_dist; 
     std::mt19937 gen;
 
-    Node* get_next(Request* req) override {
+    Node* get_next(Request* req) {
         return next_nodes[next_node_dist(gen)];
     }
 
