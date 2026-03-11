@@ -113,3 +113,102 @@ NetworkSim::NetworkSim(std::string input_file) {
         server_node->next_node_dist = std::discrete_distribution<int>(probs.begin(), probs.end());
     }
 }
+
+
+// print the configuration of the network simulation
+// in the same format as the config file
+void print_config(){
+    std::cout << "Number of Client Nodes: " << client_nodes.size() << std::endl;
+    std::cout << "Number of Server Nodes: " << server_nodes.size() << std::endl;
+    std::cout << "Max Simulation Time: " << max_time << std::endl;
+    for (ClientNode* client_node : client_nodes) {
+        std::cout << "Client Node ID: " << client_node->id << std::endl;
+        std::cout << "Number of Users: " << client_node->num_users << std::endl;
+        std::cout << "Think Time Distribution: " << std::endl;
+        if (dynamic_cast<UniformDistribution*>(client_node->think_time_dist)) {
+            std::cout << "Uniform" << std::endl;
+            std::cout << "Min Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time_dist)->a << std::endl;
+            std::cout << "Max Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time_dist)->b << std::endl;
+        } else if (dynamic_cast<ExponentialDistribution*>(client_node->think_time_dist)) {
+            std::cout << "Exponential" << std::endl;
+            std::cout << "Lambda: " << dynamic_cast<ExponentialDistribution*>(client_node->think_time_dist)->mean << std::endl;
+        } else if (dynamic_cast<ConstDistribution*>(client_node->think_time_dist)) {
+            std::cout << "Deterministic" << std::endl;
+            std::cout << "Think Time: " << dynamic_cast<ConstDistribution*>(client_node->think_time_dist)->value << std::endl;
+        } else {
+            std::cout << "Unknown" << std::endl;
+        }
+    }
+    for (ServerNode* server_node : server_nodes) {
+        std::cout << "Server Node ID: " << server_node->id << std::endl;
+        std::cout << "Number of Threads: " << server_node->num_threads << std::endl;
+        std::cout << "Receiver Buffer Size: " << server_node->receiver_buffer_size << std::endl;
+        std::cout << "Total Cores: " << server_node->total_cores << std::endl;
+        std::cout << "Thread Buffer Size: " << server_node->thread_buffer_size << std::endl;
+        std::cout << "Core Buffer Size: " << server_node->core_buffer_size << std::endl;
+        std::cout << "Core Context Switch Time: " << server_node->core_context_switch_time << std::endl;
+        std::cout << "Core Context Switch Overhead: " << server_node->core_context_switch_overhead << std::endl;
+        std::cout << "Service Time Distribution: " << std::endl;
+        if (dynamic_cast<UniformDistribution*>(server_node->service_time_dist)) {
+            std::cout << "Uniform" << std::endl;
+            std::cout << "Min Service Time: " << dynamic_cast<UniformDistribution*>(server_node->service_time_dist)->a << std::endl;
+            std::cout << "Max Service Time: " << dynamic_cast<UniformDistribution*>(server_node->service_time_dist)->b << std::endl;
+        } else if (dynamic_cast<ExponentialDistribution*>(server_node->service_time_dist)) {
+            std::cout << "Exponential" << std::endl;
+            std::cout << "Lambda: " << dynamic_cast<ExponentialDistribution*>(server_node->service_time_dist)->mean << std::endl;
+        } else if (dynamic_cast<ConstDistribution*>(server_node->service_time_dist)) {
+            std::cout << "Deterministic" << std::endl;
+            std::cout << "Service Time: " << dynamic_cast<ConstDistribution*>(server_node->service_time_dist)->value << std::endl;
+        } else {
+            std::cout << "Unknown" << std::endl;
+        }
+    }
+    std::cout << "Adjacency Matrix:" << std::endl;
+    for (ClientNode* client_node : client_nodes) {
+        for (ClientNode* other_client_node : client_nodes) {
+            std::cout << client_node->next_node_dist[other_client_node->id] << " ";
+        }
+        for (ServerNode* server_node : server_nodes) {
+            std::cout << client_node->next_node_dist[server_node->id] << " ";
+        }
+        std::cout << std::endl;
+    }
+    for (ServerNode* server_node : server_nodes) {
+        for (ClientNode* client_node : client_nodes) {
+            std::cout << server_node->next_node_dist[client_node->id] << " ";
+        }
+        for (ServerNode* other_server_node : server_nodes) {
+            std::cout << server_node->next_node_dist[other_server_node->id] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+
+
+void NetworkSim::run() {
+    std::ofstream output_file("network_event_log.txt");
+
+    output_file << "------------------------" << std::endl;
+
+    while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
+        output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
+        Event* current_event = event_queue.top();
+        event_queue.pop();
+        // Print the current event details to the output file
+        output_file << "Event Type: " << event_type_to_string(current_event->type) << std::endl;
+        // Print request id, thread id, core id if they exist
+        if (current_event->request) {
+            output_file << "Request ID: " << current_event->request->id << std::endl;
+        }
+        if (current_event->thread) {
+            output_file << "Thread ID: " << current_event->thread->id << std::endl;
+        }
+        if (current_event->core) {
+            output_file << "Core ID: " << current_event->core->id << std::endl;
+        }
+        output_file << "Node ID: " << current_event->node->id << std::endl; // Print the node id where the event is happening
+        output_file << "------------------------" << std::endl;
+        // Process the current event based on its type
+        current_event->node->process(current_event, this); 
+    }
+}
