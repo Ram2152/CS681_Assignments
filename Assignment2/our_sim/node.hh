@@ -12,7 +12,7 @@ public:
     std::discrete_distribution<int> next_node_dist; 
     std::mt19937 gen;
 
-    Node* get_next(Request* req) override {
+    Node* get_next(Request* req) {
         return next_nodes[next_node_dist(gen)];
     }
 
