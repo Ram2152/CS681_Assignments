@@ -1,7 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <bits/stdc++.h>
+#include "common.hh"
 
 class Request{
 public:

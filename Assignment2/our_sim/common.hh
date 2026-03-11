@@ -6,6 +6,7 @@
 #include "config.hh"
 #include "sim.hh"
 #include "node.hh"
-#include <string>
+#include "networksim.hh"
+#include <bits/stdc++.h>
 
 #endif
