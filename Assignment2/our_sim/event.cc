@@ -1,11 +1,12 @@
 #include "common.hh"
 
-Event::Event(double timestamp, EventType type, Request* request, Thread* thread, Core* core) {
+Event::Event(double timestamp, EventType type, Request* request, Thread* thread, Core* core, Node* node) {
     this->timestamp = timestamp;
     this->type = type;
     this->request = request;
     this->thread = thread;
     this->core = core;
+    this->node = node;
 }
 
 std::string event_type_to_string(EventType type) {

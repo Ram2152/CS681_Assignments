@@ -18,10 +18,11 @@ class Event {
 public:
     EventType type;
     double timestamp; // Time at which the event occurs
-    Event(double timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr, Core* core = nullptr);
+    Event(double timestamp, EventType type, Request* request = nullptr, Thread* thread = nullptr, Core* core = nullptr, Node* node = nullptr);
     Request* request; // Associated request for arrival and departure events
     Thread* thread; // Associated thread for thread arrival and thread process events
     Core* core; // Associated core for context switch events
+    Node* node; // Associated node for arrival and departure events
 };
 
 struct EventComparator {

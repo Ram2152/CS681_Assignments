@@ -17,4 +17,4 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(TARGET) event_log.txt
