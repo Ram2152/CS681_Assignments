@@ -1,4 +1,4 @@
 1. Figure out a way to find average core utilization
-2. Last point in System Characteristics (I don't know what to do)
+2. Timeout implementation
 3. Think of more statistics that we can show
 4. Various Scheduling Policies -- What more??

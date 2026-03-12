@@ -148,6 +148,14 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
 
 void ClientNode::process(Event* event, NetworkSim* sim) {
     std::ofstream output_file("network_log.txt", std::ios_base::app); // Open the file in append mode
+    
+    if (event->type == EventType::TIMEOUT) {
+        if (event->request->departure_time == -1) {
+            event->request->timed_out = true;
+        }
+        return;
+    }
+    
     output_file << "[Time " << event->timestamp << "] User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " is thinking." << std::endl;
     double think_time = this->think_time->sample();
     Node* next_node = get_next();
@@ -156,4 +164,6 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
     sim->event_queue.push(next_event);
     sim->all_requests.push_back(new_request);
     output_file << "Scheduled ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time << " to Node ID: " << next_node->id << std::endl;
+
+    Event* timeout_event = new Event(event->timestamp + min_timeout + this->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, this);
 }

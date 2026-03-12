@@ -45,9 +45,11 @@ public:
 class ClientNode : public Node {
 public:
     int num_users;
+    double min_timeout;
+    Distribution* timeout_dist;
     Distribution* think_time;
 
-    ClientNode(int num_users, Distribution* think_time) : num_users(num_users), think_time(think_time) {}
+    ClientNode(int num_users, double min_timeout, Distribution* timeout_dist, Distribution* think_time) : num_users(num_users), min_timeout(min_timeout), timeout_dist(timeout_dist), think_time(think_time) {}
 
     void process(Event* event, NetworkSim* sim) override;
 };

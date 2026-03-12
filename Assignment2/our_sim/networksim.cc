@@ -48,7 +48,28 @@ NetworkSim::NetworkSim(std::string input_file) {
                 std::cerr << "Unknown think time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            ClientNode* client_node = new ClientNode(num_users, think_time_dist); 
+            double min_timeout;
+            config_file >> min_timeout;
+            std::string timeout_dist_type;
+            config_file >> num_users >> timeout_dist_type;
+            Distribution* timeout_dist;
+            if (timeout_dist_type == "UNIFORM") {
+                double min_think_time, max_think_time;
+                config_file >> min_think_time >> max_think_time;
+                timeout_dist = new UniformDistribution(min_think_time, max_think_time);
+            } else if (timeout_dist_type == "EXPONENTIAL") {
+                double lambda;
+                config_file >> lambda;
+                timeout_dist = new ExponentialDistribution(lambda);
+            } else if (timeout_dist_type == "DETERMINISTIC") {
+                double constant_time;
+                config_file >> constant_time;
+                timeout_dist = new ConstDistribution(constant_time);
+            } else {
+                std::cerr << "Unknown think time distribution type in config file!" << std::endl;
+                exit(1);
+            }
+            ClientNode* client_node = new ClientNode(num_users, min_timeout, timeout_dist, think_time_dist); 
             client_node->id = i; // Assign id to the node
             client_nodes.push_back(client_node);
         } else if (node_type == "SERVER") {
