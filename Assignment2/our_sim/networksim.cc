@@ -212,7 +212,7 @@ void NetworkSim::run() {
     // For every client node, generate an arrival event for each user at time 0 and add it to the event queue
     for (ClientNode* client_node : client_nodes) {
         for (int user_id = 0; user_id < client_node->num_users; user_id++) {
-            double arrival_time = client_node->think_time->sample(); // Sample the think time for the initial arrival
+            double arrival_time = 0; // Sample the think time for the initial arrival
             Request* new_request = new Request(user_id, arrival_time, 0); // Service time will be assigned when the request arrives at the server
             all_requests.push_back(new_request);
             Node* next_node = client_node->get_next();
@@ -256,6 +256,7 @@ void NetworkSim::run() {
         event_queue.pop();
         delete event;
     }
+    Request::id_counter = 0;
 }
 
 std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
@@ -318,6 +319,35 @@ std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
         delete request;
     }
     all_requests.clear();
+
+    // for (ServerNode* server_node : server_nodes) {
+    //     std::cout << "Receiver's Request Queue Size: " << server_node->receiver.request_queue.size() << std::endl;
+    //     for (Thread* thread : server_node->receiver.thread_pool.threads) {
+    //         if (thread->current_request != nullptr) {
+    //             std::cout << "Forgot to clear receiver's thread pool" << std::endl;
+    //         }
+    //     }
+
+    //     std::cout << "Worker's Thread Queue Size: " << server_node->worker.thread_queue.size() << std::endl;
+    //     for (Core* core : server_node->worker.cores) {
+    //         if (core->busy) {
+    //             std::cout << "Core is still busy" << std::endl;
+    //         }
+    //         if (core->thread_buffer.size() != 0) {
+    //             std::cout << "Core's thread buffer is not cleared" << std::endl;
+    //         }
+    //     }
+    // }
+
+    for (ServerNode* server_node : server_nodes) {
+        for (Thread* thread : server_node->receiver.thread_pool.threads) {
+            thread->current_request = nullptr;
+        }
+        server_node->worker.busy_cores = 0;
+        for (Core* core : server_node->worker.cores) {
+            core->busy = false;
+        }
+    }
 
     return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_rate};
 }
