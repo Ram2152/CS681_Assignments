@@ -154,7 +154,7 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
             event->request->timed_out = true;
             Request* new_request = new Request(event->request->user_id, event->timestamp, 0); // Service time will be assigned when the request arrives at the server
             sim->all_requests.push_back(new_request);
-            Node* next_node = get_next();
+            Node* next_node = this->get_next();
             Event* arrival_event = new Event(event->timestamp, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
             sim->event_queue.push(arrival_event);
             output_file << "[Time " << event->timestamp << "] TIMEOUT: User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " timed out. Scheduled new ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp << " to Node ID: " << next_node->id << std::endl;
@@ -171,7 +171,7 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
     sim->all_requests.push_back(new_request);
     output_file << "Scheduled ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time << " to Node ID: " << next_node->id << std::endl;
 
-    Event* timeout_event = new Event(event->timestamp + min_timeout + this->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, this);
+    Event* timeout_event = new Event(event->timestamp + think_time + min_timeout + this->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, this);
     sim->event_queue.push(timeout_event);
-    output_file << "Scheduled TIMEOUT event for User ID: " << event->request->user_id << " at time " << event->timestamp + min_timeout + this->timeout_dist->sample() << " at Client Node ID: " << this->id << std::endl;
+    output_file << "Scheduled TIMEOUT event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time + min_timeout + this->timeout_dist->sample() << " at Client Node ID: " << this->id << std::endl;
 }

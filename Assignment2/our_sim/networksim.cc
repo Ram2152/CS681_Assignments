@@ -62,7 +62,7 @@ NetworkSim::NetworkSim(std::string input_file) {
                 config_file >> mean >> stddev;
                 timeout_dist = new NormalDistribution(mean, stddev);
             } else if (timeout_dist_type == "DETERMINISTIC") {
-                timeout_dist = new ConstDistribution(min_timeout);
+                timeout_dist = new ConstDistribution(0);
             } else {
                 std::cerr << "Unknown timeout time distribution type in config file!" << std::endl;
                 exit(1);
@@ -214,11 +214,14 @@ void NetworkSim::run() {
     // For every client node, generate an arrival event for each user at time 0 and add it to the event queue
     for (ClientNode* client_node : client_nodes) {
         for (int user_id = 0; user_id < client_node->num_users; user_id++) {
-            Request* new_request = new Request(user_id, 0, 0); // Service time will be assigned when the request arrives at the server
+            Request* new_request = new Request(user_id, client_node->think_time->sample(), 0); // Service time will be assigned when the request arrives at the server
             all_requests.push_back(new_request);
             Node* next_node = client_node->get_next();
             Event* arrival_event = new Event(0, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
             event_queue.push(arrival_event);
+
+            Event* timeout_event = new Event(new_request->arrival_time + client_node->min_timeout + client_node->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, client_node);
+            event_queue.push(timeout_event);
         }
     }
 
