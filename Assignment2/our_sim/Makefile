@@ -3,7 +3,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra
 
 TARGET = main
 
-SRCS = main.cpp sim.cc utils.cc event.cc config.cc
+SRCS = main.cpp networksim.cc node.cc utils.cc event.cc config.cc
 OBJS = $(SRCS:.cpp=.o)
 OBJS := $(OBJS:.cc=.o)
 
@@ -17,4 +17,4 @@ $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o $(TARGET) event_log.txt
+	rm -f *.o $(TARGET) event_log.txt network_event_log.txt network_log.txt

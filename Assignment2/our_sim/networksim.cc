@@ -15,11 +15,14 @@ NetworkSim::NetworkSim(std::string input_file) {
         exit(1);
     }
 
+    int num_runs;
+    config_file >> num_runs; // Read the number of runs from the config file
+
     // Parse the config file to initialize the network topology and node parameters
     int num_nodes;
     config_file >> num_nodes;
-    double max_time;
     config_file >> max_time;
+    std::cout << "Max Time: " << max_time << std::endl;
     std::vector<std::vector<double>> adjacency_matrix(num_nodes, std::vector<double>(num_nodes, 0.0));
     for (int i = 0; i < num_nodes; i++) {
         std::string node_type;
@@ -70,7 +73,7 @@ NetworkSim::NetworkSim(std::string input_file) {
                 std::cerr << "Unknown service time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            ServerNode* server_node = new ServerNode(num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_dist, 0);
+            ServerNode* server_node = new ServerNode(num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_dist);
             server_node->id = i; // Assign id to the node
             server_nodes.push_back(server_node);
         } else {
@@ -114,40 +117,37 @@ NetworkSim::NetworkSim(std::string input_file) {
     }
 }
 
-
-// print the configuration of the network simulation
-// in the same format as the config file
-void print_config(){
+void NetworkSim::print_config(){
     std::cout << "Number of Client Nodes: " << client_nodes.size() << std::endl;
     std::cout << "Number of Server Nodes: " << server_nodes.size() << std::endl;
     std::cout << "Max Simulation Time: " << max_time << std::endl;
     for (ClientNode* client_node : client_nodes) {
         std::cout << "Client Node ID: " << client_node->id << std::endl;
         std::cout << "Number of Users: " << client_node->num_users << std::endl;
-        std::cout << "Think Time Distribution: " << std::endl;
-        if (dynamic_cast<UniformDistribution*>(client_node->think_time_dist)) {
+        std::cout << "Think Time Distribution: ";
+        if (dynamic_cast<UniformDistribution*>(client_node->think_time)) {
             std::cout << "Uniform" << std::endl;
-            std::cout << "Min Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time_dist)->a << std::endl;
-            std::cout << "Max Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time_dist)->b << std::endl;
-        } else if (dynamic_cast<ExponentialDistribution*>(client_node->think_time_dist)) {
+            std::cout << "Min Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time)->a << std::endl;
+            std::cout << "Max Think Time: " << dynamic_cast<UniformDistribution*>(client_node->think_time)->b << std::endl;
+        } else if (dynamic_cast<ExponentialDistribution*>(client_node->think_time)) {
             std::cout << "Exponential" << std::endl;
-            std::cout << "Lambda: " << dynamic_cast<ExponentialDistribution*>(client_node->think_time_dist)->mean << std::endl;
-        } else if (dynamic_cast<ConstDistribution*>(client_node->think_time_dist)) {
+            std::cout << "Lambda: " << dynamic_cast<ExponentialDistribution*>(client_node->think_time)->mean << std::endl;
+        } else if (dynamic_cast<ConstDistribution*>(client_node->think_time)) {
             std::cout << "Deterministic" << std::endl;
-            std::cout << "Think Time: " << dynamic_cast<ConstDistribution*>(client_node->think_time_dist)->value << std::endl;
+            std::cout << "Think Time: " << dynamic_cast<ConstDistribution*>(client_node->think_time)->value << std::endl;
         } else {
             std::cout << "Unknown" << std::endl;
         }
     }
     for (ServerNode* server_node : server_nodes) {
         std::cout << "Server Node ID: " << server_node->id << std::endl;
-        std::cout << "Number of Threads: " << server_node->num_threads << std::endl;
-        std::cout << "Receiver Buffer Size: " << server_node->receiver_buffer_size << std::endl;
-        std::cout << "Total Cores: " << server_node->total_cores << std::endl;
-        std::cout << "Thread Buffer Size: " << server_node->thread_buffer_size << std::endl;
-        std::cout << "Core Buffer Size: " << server_node->core_buffer_size << std::endl;
-        std::cout << "Core Context Switch Time: " << server_node->core_context_switch_time << std::endl;
-        std::cout << "Core Context Switch Overhead: " << server_node->core_context_switch_overhead << std::endl;
+        std::cout << "Number of Threads: " << server_node->receiver.thread_pool.threads.size() << std::endl;
+        std::cout << "Receiver Buffer Size: " << server_node->receiver.receiver_buffer_size << std::endl;
+        std::cout << "Total Cores: " << server_node->worker.total_cores << std::endl;
+        std::cout << "Thread Buffer Size: " << server_node->worker.thread_buffer_size << std::endl;
+        std::cout << "Core Buffer Size: " << server_node->worker.cores[0]->thread_buffer_size << std::endl;
+        std::cout << "Core Context Switch Time: " << server_node->worker.core_context_switch_time << std::endl;
+        std::cout << "Core Context Switch Overhead: " << server_node->worker.core_context_switch_overhead << std::endl;
         std::cout << "Service Time Distribution: " << std::endl;
         if (dynamic_cast<UniformDistribution*>(server_node->service_time_dist)) {
             std::cout << "Uniform" << std::endl;
@@ -165,20 +165,22 @@ void print_config(){
     }
     std::cout << "Adjacency Matrix:" << std::endl;
     for (ClientNode* client_node : client_nodes) {
+        auto probs = client_node->next_node_dist.probabilities();
         for (ClientNode* other_client_node : client_nodes) {
-            std::cout << client_node->next_node_dist[other_client_node->id] << " ";
+            std::cout << probs[other_client_node->id] << " ";
         }
         for (ServerNode* server_node : server_nodes) {
-            std::cout << client_node->next_node_dist[server_node->id] << " ";
+            std::cout << probs[server_node->id] << " ";
         }
         std::cout << std::endl;
     }
     for (ServerNode* server_node : server_nodes) {
+        auto probs = server_node->next_node_dist.probabilities();
         for (ClientNode* client_node : client_nodes) {
-            std::cout << server_node->next_node_dist[client_node->id] << " ";
+            std::cout << probs[client_node->id] << " ";
         }
         for (ServerNode* other_server_node : server_nodes) {
-            std::cout << server_node->next_node_dist[other_server_node->id] << " ";
+            std::cout << probs[other_server_node->id] << " ";
         }
         std::cout << std::endl;
     }
@@ -189,6 +191,17 @@ void NetworkSim::run() {
     std::ofstream output_file("network_event_log.txt");
 
     output_file << "------------------------" << std::endl;
+
+    // For every client node, generate an arrival event for each user at time 0 and add it to the event queue
+    for (ClientNode* client_node : client_nodes) {
+        for (int user_id = 0; user_id < client_node->num_users; user_id++) {
+            Request* new_request = new Request(user_id, 0, 0); // Service time will be assigned when the request arrives at the server
+            all_requests.push_back(new_request);
+            Node* next_node = client_node->get_next();
+            Event* arrival_event = new Event(0, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
+            event_queue.push(arrival_event);
+        }
+    }
 
     while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
         output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
@@ -210,5 +223,93 @@ void NetworkSim::run() {
         output_file << "------------------------" << std::endl;
         // Process the current event based on its type
         current_event->node->process(current_event, this); 
+    }
+    // Clear all requests and events from the event queue
+    while (!event_queue.empty()) {
+        Event* event = event_queue.top();
+        event_queue.pop();
+        delete event;
+    }
+}
+
+std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
+    double total_response_time = 0;
+    int bad_completed_requests = 0;
+    int good_completed_requests = 0;
+    int dropped_requests = 0;
+
+    for (Request* request : all_requests) {
+        if (request->departure_time > 0) {
+            double response_time = request->departure_time - request->arrival_time;
+            total_response_time += response_time;
+            if (!request->timed_out) {
+                good_completed_requests++;
+            } else {
+                bad_completed_requests++;
+            }
+        }
+        if (request->is_dropped) {
+            dropped_requests++;
+        }
+    }
+    double average_response_time = (good_completed_requests + bad_completed_requests) > 0 ? total_response_time / (good_completed_requests + bad_completed_requests) : 0;
+    double good_throughput = good_completed_requests / max_time;
+    double bad_throughput = bad_completed_requests / max_time;
+    double total_throughput = (good_completed_requests + bad_completed_requests) / max_time;
+    double dropped_request_rate = dropped_requests / max_time;
+    // std::cout << "Average Response Time: " << average_response_time << std::endl;
+    // std::cout << "Bad Throughput: " << bad_completed_requests / max_time << std::endl;
+    // std::cout << "Good Throughput: " << good_completed_requests / max_time << std::endl;
+    // std::cout << "Dropped Requests Rate: " << dropped_requests / max_time << std::endl;
+
+    // for (Request* request : all_requests) {
+    //     std::cout << "Request ID: " << request->id << ", User ID: " << request->user_id << ", Arrival Time: " << request->arrival_time << ", Service Time: " << request->service_time << ", Departure Time: " << request->departure_time << std::endl;
+    // }
+
+    
+    
+    for (ServerNode* server_node : server_nodes) {
+        while (!server_node->worker.thread_queue.empty()) {
+            Thread* thread = server_node->worker.thread_queue.front();
+            server_node->worker.thread_queue.pop();
+            thread->current_request = nullptr; // Free the thread
+        }
+        for (Core* core : server_node->worker.cores) {
+            while (!core->thread_buffer.empty()) {
+                Thread* thread = core->thread_buffer.front();
+                core->thread_buffer.pop();
+                thread->current_request = nullptr; // Free the thread
+            }
+        }
+        while (!server_node->receiver.request_queue.empty()) {
+            server_node->receiver.request_queue.pop();
+        }
+    }
+
+    for (Request* request : all_requests) {
+        delete request;
+    }
+    all_requests.clear();
+
+    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_rate};
+}
+
+NetworkSim::~NetworkSim() {
+    // Clean up all dynamically allocated memory
+    for (ClientNode* client_node : client_nodes) {
+        delete client_node->think_time;
+        delete client_node;
+    }
+    for (ServerNode* server_node : server_nodes) {
+        delete server_node->service_time_dist;
+        for (Core* core : server_node->worker.cores) {
+            delete core;
+        }
+        delete server_node;
+    }
+    while (!event_queue.empty()) {
+        Event* event = event_queue.top();
+        event_queue.pop();
+        delete event;
     }
 }

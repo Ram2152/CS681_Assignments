@@ -3,6 +3,7 @@
 Request::Request(int user_id, double arrival_time, double service_time) : user_id(user_id), arrival_time(arrival_time), service_time(service_time), remaining_service_time(service_time) {
     id = id_counter++;
     timed_out = false;
+    is_dropped = false;
     departure_time = -1; // Initialize departure time to -1 to indicate it hasn't departed yet
 }
 

@@ -1,0 +1,99 @@
+#include "common.hh"
+
+// Calculate confidence intervals for response time data
+std::tuple<double, double> calculate_confidence_interval(const std::vector<double>& data, double confidence_level) {
+    int n = data.size();
+    if (n == 0) {
+        return std::make_tuple(0, 0); // No data, return (0, 0) as confidence interval
+    }
+    
+    // Calculate mean
+    double mean = std::accumulate(data.begin(), data.end(), 0.0) / n;
+
+    // Calculate standard deviation
+    double variance = std::accumulate(data.begin(), data.end(), 0.0, [mean](double acc, double x) {
+        return acc + (x - mean) * (x - mean);
+    }) / n;
+    double stddev = std::sqrt(variance);
+
+    // Z-score for the given confidence level (e.g., 1.96 for 95% confidence)
+    double z_score;
+    if (confidence_level == 0.95) {
+        z_score = 1.96;
+    } else if (confidence_level == 0.90) {
+        z_score = 1.645;
+    } else if (confidence_level == 0.99) {
+        z_score = 2.576;
+    } else {
+        std::cerr << "Unsupported confidence level! Using 95% confidence by default." << std::endl;
+        z_score = 1.96;
+    }
+
+    // Calculate margin of error
+    double margin_of_error = z_score * (stddev / std::sqrt(n));
+
+    // Calculate confidence interval
+    double lower_bound = mean - margin_of_error;
+    double upper_bound = mean + margin_of_error;
+
+    return std::make_tuple(lower_bound, upper_bound);
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
+        return 1;
+    }
+    std::string config_file = argv[1];
+    
+    std::ifstream infile(config_file);
+    if (!infile.good()) {
+        std::cerr << "Error: Config file not found!" << std::endl;
+        return 1;
+    }
+
+    int num_of_runs;
+    infile >> num_of_runs;
+    infile.close();
+
+    NetworkSim sim(config_file);
+    sim.print_config();
+
+    std::vector<double> avg_response_times;
+    std::vector<double> good_throughputs;
+    std::vector<double> bad_throughputs;
+    std::vector<double> total_throughputs;
+    std::vector<double> drop_rates;
+
+    for (int run = 0; run < num_of_runs; run++) {
+        std::cout << "Run " << run + 1 << "..." << std::endl;
+
+        sim.run();
+        auto stats = sim.print_stats();
+        avg_response_times.push_back(std::get<0>(stats));
+        good_throughputs.push_back(std::get<1>(stats));
+        bad_throughputs.push_back(std::get<2>(stats));
+        total_throughputs.push_back(std::get<3>(stats));
+        drop_rates.push_back(std::get<4>(stats));
+    }
+
+    for (int run = 0; run < num_of_runs; run++) {
+        std::cout << "======================" << std::endl;
+        std::cout << "Run " << run + 1 << " of " << num_of_runs << " Summary:" << std::endl;
+        std::cout << "Average Response Time: " << avg_response_times[run] << " seconds" << std::endl;
+        std::cout << "Good Throughput: " << good_throughputs[run] << " req/sec" << std::endl;
+        std::cout << "Bad Throughput: " << bad_throughputs[run] << " req/sec" << std::endl;
+        std::cout << "Total Throughput: " << total_throughputs[run] << " req/sec" << std::endl;
+        std::cout << "Request Drop Rate: " << drop_rates[run] * 100 << " req/sec" << std::endl;
+        std::cout << "======================" << std::endl;
+        std::cout << std::endl;
+    }
+
+    std::vector<double> confidence_levels = {0.90, 0.95, 0.99};
+    for (double confidence_level : confidence_levels) {
+        auto ci = calculate_confidence_interval(avg_response_times, confidence_level);
+        std::cout << "Confidence Interval for Average Response Time at " << confidence_level * 100 << "% confidence: [" << std::get<0>(ci) << ", " << std::get<1>(ci) << "] seconds" << std::endl;
+    }
+
+    return 0;
+}

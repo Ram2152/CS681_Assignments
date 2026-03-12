@@ -9,6 +9,7 @@ public:
     int id;
     int user_id;
     bool timed_out;
+    bool is_dropped;
     double arrival_time;
     double service_time;
     double remaining_service_time;

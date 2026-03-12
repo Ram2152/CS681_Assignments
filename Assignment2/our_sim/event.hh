@@ -3,6 +3,8 @@
 
 #include "common.hh"
 
+class Node;
+
 enum class EventType {
     ARRIVAL, // Request arrives into request buffer and waits for a free thread to assign
     DEPARTURE, // Request departs from the system after processing is done and thread is freed
