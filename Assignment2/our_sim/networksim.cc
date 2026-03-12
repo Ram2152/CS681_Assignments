@@ -4,7 +4,7 @@
 // num_nodes max_time
 // For each node:
 // node_type (client/server)
-// If client: num_users, think_time_distribution_type, think_time_distribution_params
+// If client: num_users, think_time_distribution_type, think_time_distribution_params, min_timeout, timeout_distribution_type, timeout_distribution_params
 // If server: num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_distribution_type, service_time_distribution_params
 // Adjacency Matrix (num_nodes x num_nodes) : containing probabilities of routing from node i to node j
 
@@ -51,22 +51,20 @@ NetworkSim::NetworkSim(std::string input_file) {
             double min_timeout;
             config_file >> min_timeout;
             std::string timeout_dist_type;
-            config_file >> num_users >> timeout_dist_type;
+            config_file >> timeout_dist_type;
             Distribution* timeout_dist;
             if (timeout_dist_type == "UNIFORM") {
                 double min_think_time, max_think_time;
                 config_file >> min_think_time >> max_think_time;
                 timeout_dist = new UniformDistribution(min_think_time, max_think_time);
-            } else if (timeout_dist_type == "EXPONENTIAL") {
-                double lambda;
-                config_file >> lambda;
-                timeout_dist = new ExponentialDistribution(lambda);
+            } else if (timeout_dist_type == "NORMAL") {
+                double mean, stddev;
+                config_file >> mean >> stddev;
+                timeout_dist = new NormalDistribution(mean, stddev);
             } else if (timeout_dist_type == "DETERMINISTIC") {
-                double constant_time;
-                config_file >> constant_time;
-                timeout_dist = new ConstDistribution(constant_time);
+                timeout_dist = new ConstDistribution(min_timeout);
             } else {
-                std::cerr << "Unknown think time distribution type in config file!" << std::endl;
+                std::cerr << "Unknown timeout time distribution type in config file!" << std::endl;
                 exit(1);
             }
             ClientNode* client_node = new ClientNode(num_users, min_timeout, timeout_dist, think_time_dist); 

@@ -104,6 +104,14 @@ public:
     double sample() override;
 };
 
+class NormalDistribution : public Distribution {
+public:
+    double mean, stddev;
+    NormalDistribution(double mean, double stddev);
+    ~NormalDistribution();
+    double sample() override;
+};
+
 class MultinomialDistribution {
 private:
     std::vector<double> probabilities;
