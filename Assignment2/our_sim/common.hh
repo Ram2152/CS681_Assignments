@@ -12,7 +12,6 @@
 #include "config.hh"
 #include "event.hh"
 #include "node.hh"
-#include "sim.hh"
 #include "networksim.hh"
 
 #endif

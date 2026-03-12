@@ -208,22 +208,26 @@ void NetworkSim::print_config(){
 
 void NetworkSim::run() {
     std::ofstream output_file("network_event_log.txt");
-
-    output_file << "------------------------" << std::endl;
-
+    
     // For every client node, generate an arrival event for each user at time 0 and add it to the event queue
     for (ClientNode* client_node : client_nodes) {
         for (int user_id = 0; user_id < client_node->num_users; user_id++) {
-            Request* new_request = new Request(user_id, client_node->think_time->sample(), 0); // Service time will be assigned when the request arrives at the server
+            double arrival_time = client_node->think_time->sample(); // Sample the think time for the initial arrival
+            Request* new_request = new Request(user_id, arrival_time, 0); // Service time will be assigned when the request arrives at the server
             all_requests.push_back(new_request);
             Node* next_node = client_node->get_next();
-            Event* arrival_event = new Event(0, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
+            Event* arrival_event = new Event(arrival_time, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
             event_queue.push(arrival_event);
-
+            
             Event* timeout_event = new Event(new_request->arrival_time + client_node->min_timeout + client_node->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, client_node);
             event_queue.push(timeout_event);
+
+            output_file << "Scheduled initial ARRIVAL event for User ID: " << user_id << " at time " << arrival_event->timestamp << " to Node ID: " << next_node->id << std::endl;
+            output_file << "Scheduled initial TIMEOUT event for User ID: " << user_id << " at time " << timeout_event->timestamp << " at Client Node ID: " << client_node->id << std::endl;
         }
     }
+    
+    output_file << "------------------------" << std::endl;
 
     while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
         output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
@@ -259,6 +263,8 @@ std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
     int bad_completed_requests = 0;
     int good_completed_requests = 0;
     int dropped_requests = 0;
+    int total_requests = all_requests.size();
+    std::cout << "Total Requests: " << total_requests << std::endl;
 
     for (Request* request : all_requests) {
         if (request->departure_time > 0) {

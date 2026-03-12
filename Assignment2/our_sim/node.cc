@@ -5,7 +5,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
     switch (current_event->type) {
         case EventType::ARRIVAL: {
             output_file << "[Time " << current_event->timestamp << "] Request ID: " << current_event->request->id << " arrived at Server Node ID: " << this->id << std::endl;
-            current_event->request->service_time = service_time_dist->sample();
+            current_event->request->service_time = this->service_time_dist->sample();
             current_event->request->remaining_service_time = current_event->request->service_time;
             if (receiver.thread_pool.has_idle_thread()) {
                 Thread* idle_thread = receiver.thread_pool.find_idle_thread();
@@ -98,7 +98,6 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
         }
         case EventType::DEPARTURE: {
             output_file << "[Time " << current_event->timestamp << "] Departure of Request ID: " << current_event->request->id << " from Server Node ID: " << this->id << std::endl;
-            current_event->request->departure_time = current_event->timestamp;
             current_event->core->busy = false;
             worker.busy_cores--;
             current_event->thread->current_request = nullptr; // Free the thread
@@ -162,6 +161,7 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
         return;
     }
     
+    event->request->departure_time = event->timestamp; // Mark the departure time for statistics
     output_file << "[Time " << event->timestamp << "] User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " is thinking." << std::endl;
     double think_time = this->think_time->sample();
     Node* next_node = get_next();
