@@ -250,6 +250,7 @@ void NetworkSim::run() {
         // Process the current event based on its type
         current_event->node->process(current_event, this); 
     }
+
     // Clear all requests and events from the event queue
     while (!event_queue.empty()) {
         Event* event = event_queue.top();
@@ -259,7 +260,7 @@ void NetworkSim::run() {
     Request::id_counter = 0;
 }
 
-std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
+std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>> NetworkSim::print_stats() {
     double total_response_time = 0;
     int bad_completed_requests = 0;
     int good_completed_requests = 0;
@@ -286,6 +287,12 @@ std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
     double bad_throughput = bad_completed_requests / max_time;
     double total_throughput = (good_completed_requests + bad_completed_requests) / max_time;
     double dropped_request_rate = dropped_requests / max_time;
+    std::vector<std::tuple<int, int, double>> cpu_times;
+    for (ServerNode* server_node : server_nodes) {
+        for (Core* core : server_node->worker.cores) {
+            cpu_times.push_back({server_node->id, core->id, core->total_busy_time});
+        }
+    }
     // std::cout << "Average Response Time: " << average_response_time << std::endl;
     // std::cout << "Bad Throughput: " << bad_completed_requests / max_time << std::endl;
     // std::cout << "Good Throughput: " << good_completed_requests / max_time << std::endl;
@@ -349,7 +356,14 @@ std::tuple<double, double, double, double, double> NetworkSim::print_stats() {
         }
     }
 
-    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_rate};
+    // clear total_busy_time for each core for the next run
+    for (ServerNode* server_node : server_nodes) {
+        for (Core* core : server_node->worker.cores) {
+            core->total_busy_time = 0;
+        }
+    }
+
+    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_rate, cpu_times};
 }
 
 NetworkSim::~NetworkSim() {

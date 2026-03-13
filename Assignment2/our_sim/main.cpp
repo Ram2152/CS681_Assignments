@@ -64,6 +64,7 @@ int main(int argc, char* argv[]) {
     std::vector<double> bad_throughputs;
     std::vector<double> total_throughputs;
     std::vector<double> drop_rates;
+    std::vector<std::vector<std::tuple<int, int, double>>> all_cpu_times;
 
     for (int run = 0; run < num_of_runs; run++) {
         std::cout << "Run " << run + 1 << "..." << std::endl;
@@ -75,6 +76,7 @@ int main(int argc, char* argv[]) {
         bad_throughputs.push_back(std::get<2>(stats));
         total_throughputs.push_back(std::get<3>(stats));
         drop_rates.push_back(std::get<4>(stats));
+        all_cpu_times.push_back(std::get<5>(stats));
     }
 
     for (int run = 0; run < num_of_runs; run++) {
@@ -85,6 +87,35 @@ int main(int argc, char* argv[]) {
         std::cout << "Bad Throughput: " << bad_throughputs[run] << " req/sec" << std::endl;
         std::cout << "Total Throughput: " << total_throughputs[run] << " req/sec" << std::endl;
         std::cout << "Request Drop Rate: " << drop_rates[run] * 100 << " req/sec" << std::endl;
+        // For each core, divide the total busy time by max_time to get the CPU utilization percentage
+        // For each server node, print the CPU utilization of each core
+        // For each server node, print the CPU utilization of the server node as a whole (total busy time of all cores divided by (number of cores * max_time))
+        // Iterate through all servernodes, and for each core, print the total busy time and utilization percentage
+        std::cout << "CPU Utilization:" << std::endl;
+        std::vector<std::tuple<int, int, double>> cpu_times = all_cpu_times[run];
+        std::map<int, std::vector<std::tuple<int, double>>> server_core_times; // server_id -> vector of (core_id, busy_time)
+        for (const auto& entry : cpu_times) {
+            int server_id = std::get<0>(entry);
+            int core_id = std::get<1>(entry);
+            double busy_time = std::get<2>(entry);
+            server_core_times[server_id].push_back({core_id, busy_time});
+        }
+        for (const auto& server_entry : server_core_times) {
+            int server_id = server_entry.first;
+            const auto& core_times = server_entry.second;
+            double total_busy_time = 0;
+            std::cout << "  Server Node " << server_id << ":" << std::endl;
+            for (const auto& core_entry : core_times) {
+                int core_id = std::get<0>(core_entry);
+                double busy_time = std::get<1>(core_entry);
+                total_busy_time += busy_time;
+                double utilization = (busy_time / sim.max_time) * 100;
+                std::cout << "    Core " << core_id << ": Busy Time = " << busy_time << " seconds, Utilization = " << utilization << "%" << std::endl;
+            }
+            double server_utilization = (total_busy_time / (core_times.size() * sim.max_time)) * 100;
+            std::cout << "  Server Node " << server_id << " Overall Utilization: " << server_utilization << "%" << std::endl;   
+        }
+
         std::cout << "======================" << std::endl;
         std::cout << std::endl;
     }

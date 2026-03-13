@@ -92,6 +92,7 @@ Core* Worker::find_free_core() {
 
 Core::Core(int thread_buffer_size, double core_context_switch_time, double core_context_switch_overhead) : busy(false), thread_buffer_size(thread_buffer_size), core_context_switch_time(core_context_switch_time), core_context_switch_overhead(core_context_switch_overhead) {
     id = id_counter++;
+    total_busy_time = 0;
 }
 
 Core::~Core() {

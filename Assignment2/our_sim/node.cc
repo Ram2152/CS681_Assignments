@@ -1,5 +1,13 @@
 #include "node.hh"
 
+double ServerNode::total_cpu_time() {
+    double total_cpu_time = 0;
+    for (Core* core : worker.cores) {
+        total_cpu_time += core->total_busy_time;
+    }
+    return total_cpu_time;
+}
+
 void ServerNode::process(Event* current_event, NetworkSim* sim) {
     std::ofstream output_file("network_log.txt", std::ios_base::app); // Open the file in append mode
     switch (current_event->type) {
@@ -67,6 +75,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 current_event->core->busy = true;
                 worker.busy_cores++;
                 current_event->request->remaining_service_time = 0;
+                current_event->core->total_busy_time += service_time_remaining;
                 output_file << "Scheduled DEPARTURE event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp + service_time_remaining << std::endl;
             } else {
                 // Schedule context switch event
@@ -75,6 +84,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 current_event->core->busy = true;
                 worker.busy_cores++;
                 current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
+                current_event->core->total_busy_time += current_event->core->core_context_switch_time;
                 output_file << "Scheduled CONTEXT_SWITCH event for Thread ID: " << current_event->thread->id << " at time " << current_event->timestamp + current_event->core->core_context_switch_time << std::endl;
             }
             break;
@@ -87,6 +97,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
                 sim->event_queue.push(thread_process_event);
                 current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
+                current_event->core->total_busy_time += current_event->core->core_context_switch_overhead; // Account for context switch overhead in CPU time
                 output_file << "Context switch: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " and scheduled Thread ID: " << next_thread->id << " for processing at Server Node ID: " << this->id << std::endl;
             } else {
                 // No waiting threads in the core's buffer, schedule a thread process event for the current thread to continue processing immediately

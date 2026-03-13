@@ -54,6 +54,7 @@ public:
     int thread_buffer_size;
     double core_context_switch_time;
     double core_context_switch_overhead;
+    double total_busy_time;
     std::queue<Thread*> thread_buffer;
     Core(int thread_buffer_size, double core_context_switch_time, double core_context_switch_overhead);
     ~Core();

@@ -40,6 +40,7 @@ public:
           service_time_dist(service_time_dist) {}
 
     void process(Event* event, NetworkSim* sim) override;
+    double total_cpu_time();
 };
 
 class ClientNode : public Node {
