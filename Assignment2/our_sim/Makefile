@@ -21,4 +21,4 @@ $(TARGETNETSIM): $(OBJS)
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o $(TARGET) event_log.txt network_event_log.txt network_log.txt
+	rm -f *.o $(TARGETSIM) $(TARGETNETSIM) event_log.txt network_event_log.txt network_log.txt

@@ -83,6 +83,9 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                     current_event->core->total_busy_time += service_time_remaining;
                     output_file << "Scheduled DEPARTURE event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp + service_time_remaining << std::endl;
                 }
+                else{
+                    current_event->core->total_busy_time += (sim->max_time - current_event->timestamp); // Account for the remaining busy time until max_time if the departure event goes beyond max_time
+                }
             } else {
                 // Schedule context switch event
                 Event* context_switch_event = new Event(current_event->timestamp + current_event->core->core_context_switch_time, EventType::CONTEXT_SWITCH, current_event->request, current_event->thread, current_event->core, this);
@@ -93,6 +96,9 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                     current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
                     current_event->core->total_busy_time += current_event->core->core_context_switch_time;
                     output_file << "Scheduled CONTEXT_SWITCH event for Thread ID: " << current_event->thread->id << " at time " << current_event->timestamp + current_event->core->core_context_switch_time << std::endl;
+                }
+                else{
+                    current_event->core->total_busy_time += (sim->max_time - current_event->timestamp); // Account for the remaining busy time until max_time if the context switch event goes beyond max_time
                 }
             }
             break;
@@ -108,6 +114,9 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                     current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
                     current_event->core->total_busy_time += current_event->core->core_context_switch_overhead; // Account for context switch overhead in CPU time
                     output_file << "Context switch: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " and scheduled Thread ID: " << next_thread->id << " for processing at Server Node ID: " << this->id << std::endl;
+                }
+                else{
+                    current_event->core->total_busy_time += (sim->max_time - current_event->timestamp); // Account for the remaining busy time until max_time if the context switch event goes beyond max_time
                 }
             } else {
                 // No waiting threads in the core's buffer, schedule a thread process event for the current thread to continue processing immediately
