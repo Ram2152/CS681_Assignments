@@ -22,15 +22,14 @@ NetworkSim::NetworkSim(std::string input_file) {
     int num_nodes;
     config_file >> num_nodes;
     config_file >> max_time;
-    std::cout << "Max Time: " << max_time << std::endl;
+    // std::cout << "Max Time: " << max_time << std::endl;
     std::vector<std::vector<double>> adjacency_matrix(num_nodes, std::vector<double>(num_nodes, 0.0));
     for (int i = 0; i < num_nodes; i++) {
         std::string node_type;
         config_file >> node_type;
         if (node_type == "CLIENT") {
-            int num_users;
             std::string think_dist_type;
-            config_file >> num_users >> think_dist_type;
+            config_file >> min_num_users >> max_num_users >> step_size >> think_dist_type;
             Distribution* think_time_dist;
             if (think_dist_type == "UNIFORM") {
                 double min_think_time, max_think_time;
@@ -67,7 +66,7 @@ NetworkSim::NetworkSim(std::string input_file) {
                 std::cerr << "Unknown timeout time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            ClientNode* client_node = new ClientNode(num_users, min_timeout, timeout_dist, think_time_dist); 
+            ClientNode* client_node = new ClientNode(0, min_timeout, timeout_dist, think_time_dist); 
             client_node->id = i; // Assign id to the node
             client_nodes.push_back(client_node);
         } else if (node_type == "SERVER") {
@@ -212,7 +211,7 @@ void NetworkSim::print_config(){
 
 
 void NetworkSim::run() {
-    std::ofstream output_file("network_event_log.txt");
+    // std::ofstream output_file("network_event_log.txt");
     
     // For every client node, generate an arrival event for each user at time 0 and add it to the event queue
     for (ClientNode* client_node : client_nodes) {
@@ -227,31 +226,31 @@ void NetworkSim::run() {
             Event* timeout_event = new Event(new_request->arrival_time + client_node->min_timeout + client_node->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, client_node);
             event_queue.push(timeout_event);
 
-            output_file << "Scheduled initial ARRIVAL event for User ID: " << user_id << " at time " << arrival_event->timestamp << " to Node ID: " << next_node->id << std::endl;
-            output_file << "Scheduled initial TIMEOUT event for User ID: " << user_id << " at time " << timeout_event->timestamp << " at Client Node ID: " << client_node->id << std::endl;
+                // output_file << "Scheduled initial ARRIVAL event for User ID: " << user_id << " at time " << arrival_event->timestamp << " to Node ID: " << next_node->id << std::endl;
+                // output_file << "Scheduled initial TIMEOUT event for User ID: " << user_id << " at time " << timeout_event->timestamp << " at Client Node ID: " << client_node->id << std::endl;
         }
     }
     
-    output_file << "------------------------" << std::endl;
+    // output_file << "------------------------" << std::endl;
 
     while (!event_queue.empty() && event_queue.top()->timestamp <= max_time) {
-        output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
+        // output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
         Event* current_event = event_queue.top();
         event_queue.pop();
         // Print the current event details to the output file
-        output_file << "Event Type: " << event_type_to_string(current_event->type) << std::endl;
+        // output_file << "Event Type: " << event_type_to_string(current_event->type) << std::endl;
         // Print request id, thread id, core id if they exist
         if (current_event->request) {
-            output_file << "Request ID: " << current_event->request->id << std::endl;
+            // output_file << "Request ID: " << current_event->request->id << std::endl;
         }
         if (current_event->thread) {
-            output_file << "Thread ID: " << current_event->thread->id << std::endl;
+            // output_file << "Thread ID: " << current_event->thread->id << std::endl;
         }
         if (current_event->core) {
-            output_file << "Core ID: " << current_event->core->id << std::endl;
+            // output_file << "Core ID: " << current_event->core->id << std::endl;
         }
-        output_file << "Node ID: " << current_event->node->id << std::endl; // Print the node id where the event is happening
-        output_file << "------------------------" << std::endl;
+        // output_file << "Node ID: " << current_event->node->id << std::endl; // Print the node id where the event is happening
+        // output_file << "------------------------" << std::endl;
         // Process the current event based on its type
         current_event->node->process(current_event, this); 
     }

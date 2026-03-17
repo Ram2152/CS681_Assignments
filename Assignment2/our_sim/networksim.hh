@@ -11,7 +11,7 @@ class NetworkSim {
     std::vector<ClientNode*> client_nodes;
     std::vector<ServerNode*> server_nodes;
     // Store all requests for statistics
-
+    int min_num_users, max_num_users, step_size;
     double max_time;
     std::vector<Request*> all_requests;
     std::priority_queue<Event*, std::vector<Event*>, EventComparator> event_queue;
