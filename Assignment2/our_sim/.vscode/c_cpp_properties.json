@@ -3,7 +3,8 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/opt/homebrew/include"
             ],
             "defines": [],
             "compilerPath": "/opt/homebrew/bin/g++-15",

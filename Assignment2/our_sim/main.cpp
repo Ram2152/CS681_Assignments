@@ -46,18 +46,19 @@ int main(int argc, char* argv[]) {
     }
     std::string config_file = argv[1];
     
-    std::ifstream infile(config_file);
-    if (!infile.good()) {
-        std::cerr << "Error: Config file not found!" << std::endl;
-        return 1;
+    simdjson::dom::parser parser;
+    simdjson::dom::element config;
+    auto error = parser.load(config_file).get(config);
+    if (error) {
+        std::cerr << "Error parsing config file: " << simdjson::error_message(error) << std::endl;
+        exit(1);
     }
 
-    int num_of_runs;
-    infile >> num_of_runs;
-    infile.close();
+    int num_of_runs = config["num_runs"].get_int64();
+    std::string_view output_file = config["output_file"].get_string();
 
     NetworkSim sim(config_file);
-    // sim.print_config();
+    sim.print_config();
 
     // Vectors to store stats for all runs and for all user counts
 
@@ -70,7 +71,7 @@ int main(int argc, char* argv[]) {
 
     // In a run, iterate from 5 users to 200 users, and for each user count, call sim.run() and sim.print_stats() to get the stats and write it to a csv file. The csv file should have the following columns: user_count, avg_response_time, good_throughput, bad_throughput, total_throughput, drop_percentage, server_0_utilization, server_1_utilization, server_2_utilization, server_3_utilization. The server_x_utilization columns should contain the overall utilization of each server node (total busy time of all cores divided by (number of cores * max_time)). The csv file should be named "simulation_results.csv". After all runs are done, calculate the confidence intervals for the average response time at 90%, 95%, and 99% confidence levels and print them to the console.
 
-    std::ofstream csv_file("simulation_results.csv");
+    std::ofstream csv_file(output_file.data());
     csv_file << "user_count,avg_response_time,good_throughput,bad_throughput,total_throughput,drop_percentage,";
     for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
         csv_file << "server_" << server_id << "_utilization,";

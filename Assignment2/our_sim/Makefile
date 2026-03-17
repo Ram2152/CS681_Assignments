@@ -1,18 +1,15 @@
 CXX = g++-15
-CXXFLAGS = -std=c++17 -Wall -Wextra
+CXXFLAGS = -std=c++17 -Wall -Wextra -I/opt/homebrew/include
+LDFLAGS = -L/opt/homebrew/lib -lsimdjson
 
-TARGETSIM = sim
-TARGETNETSIM = networksim
+TARGET = networksim
 
-SRCS = sim.cc node.cc utils.cc event.cc config.cc networksim.cc
+SRCS = node.cc utils.cc event.cc config.cc networksim.cc
 OBJS = $(SRCS:.cpp=.o)
 OBJS := $(OBJS:.cc=.o)
 
-$(TARGETSIM): $(OBJS) main_qs.cpp
-	$(CXX) $(CXXFLAGS) -o $(TARGETSIM) main_qs.cpp $(OBJS)
-
-$(TARGETNETSIM): $(OBJS) main.cpp
-	$(CXX) $(CXXFLAGS) -o $(TARGETNETSIM) main.cpp $(OBJS)
+$(TARGET): $(OBJS) main.cpp
+	$(CXX) $(CXXFLAGS) -o $(TARGET) main.cpp $(OBJS) $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $<
@@ -21,4 +18,4 @@ $(TARGETNETSIM): $(OBJS) main.cpp
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o $(TARGETSIM) $(TARGETNETSIM) event_log.txt network_event_log.txt network_log.txt
+	rm -f *.o $(TARGET) event_log.txt network_event_log.txt network_log.txt

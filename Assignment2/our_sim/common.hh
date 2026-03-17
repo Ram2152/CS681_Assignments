@@ -13,6 +13,6 @@
 #include "event.hh"
 #include "node.hh"
 #include "networksim.hh"
-#include "sim.hh"
+#include <simdjson.h>
 
 #endif

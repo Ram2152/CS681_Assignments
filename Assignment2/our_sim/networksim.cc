@@ -1,137 +1,121 @@
 #include "common.hh"
 
-// Config file format:
-// num_nodes max_time
-// For each node:
-// node_type (client/server)
-// If client: num_users, think_time_distribution_type, think_time_distribution_params, min_timeout, timeout_distribution_type, timeout_distribution_params
-// If server: num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_distribution_type, service_time_distribution_params
-// Adjacency Matrix (num_nodes x num_nodes) : containing probabilities of routing from node i to node j
-
 NetworkSim::NetworkSim(std::string input_file) {
-    std::ifstream config_file(input_file);
-    if (!config_file.is_open()) {
-        std::cerr << "Error opening config file!" << std::endl;
+    simdjson::dom::parser parser;
+    simdjson::dom::element config;
+    auto error = parser.load(input_file).get(config);
+    if (error) {
+        std::cerr << "Error parsing config file: " << simdjson::error_message(error) << std::endl;
         exit(1);
     }
+    max_time = config["max_time"].get_double();
+    min_num_users = config["nodes"].get_array().at(0)["min_num_users"].get_int64();
+    max_num_users = config["nodes"].get_array().at(0)["max_num_users"].get_int64();
+    step_size = config["nodes"].get_array().at(0)["step_size"].get_int64();
 
-    int num_runs;
-    config_file >> num_runs; // Read the number of runs from the config file
-
-    // Parse the config file to initialize the network topology and node parameters
-    int num_nodes;
-    config_file >> num_nodes;
-    config_file >> max_time;
-    // std::cout << "Max Time: " << max_time << std::endl;
-    std::vector<std::vector<double>> adjacency_matrix(num_nodes, std::vector<double>(num_nodes, 0.0));
-    for (int i = 0; i < num_nodes; i++) {
-        std::string node_type;
-        config_file >> node_type;
+    int id = 0;
+    for (const auto& node : config["nodes"].get_array()) {
+        std::string_view node_type = node["node_type"];
         if (node_type == "CLIENT") {
-            std::string think_dist_type;
-            config_file >> min_num_users >> max_num_users >> step_size >> think_dist_type;
+            std::string_view think_time_distribution_type = node["think_time_distribution_type"];
             Distribution* think_time_dist;
-            if (think_dist_type == "UNIFORM") {
-                double min_think_time, max_think_time;
-                config_file >> min_think_time >> max_think_time;
+            if (think_time_distribution_type == "UNIFORM") {
+                auto params = node["think_time_distribution_params"].get_array();
+                double min_think_time = params.at(0).get_double();
+                double max_think_time = params.at(1).get_double();
                 think_time_dist = new UniformDistribution(min_think_time, max_think_time);
-            } else if (think_dist_type == "EXPONENTIAL") {
-                double lambda;
-                config_file >> lambda;
+            } else if (think_time_distribution_type == "EXPONENTIAL") {
+                auto params = node["think_time_distribution_params"].get_array();
+                double lambda = params.at(0).get_double();
                 think_time_dist = new ExponentialDistribution(lambda);
-            } else if (think_dist_type == "DETERMINISTIC") {
-                double constant_time;
-                config_file >> constant_time;
+            } else if (think_time_distribution_type == "DETERMINISTIC") {
+                auto params = node["think_time_distribution_params"].get_array();
+                double constant_time = params.at(0).get_double();
                 think_time_dist = new ConstDistribution(constant_time);
             } else {
                 std::cerr << "Unknown think time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            double min_timeout;
-            config_file >> min_timeout;
-            std::string timeout_dist_type;
-            config_file >> timeout_dist_type;
+            double min_timeout = node["min_timeout"].get_double();
+            std::string_view timeout_distribution_type = node["timeout_distribution_type"];
             Distribution* timeout_dist;
-            if (timeout_dist_type == "UNIFORM") {
-                double min_think_time, max_think_time;
-                config_file >> min_think_time >> max_think_time;
+            if (timeout_distribution_type == "UNIFORM") {
+                auto params = node["timeout_distribution_params"].get_array();
+                double min_think_time = params.at(0).get_double();
+                double max_think_time = params.at(1).get_double();
                 timeout_dist = new UniformDistribution(min_think_time, max_think_time);
-            } else if (timeout_dist_type == "NORMAL") {
-                double mean, stddev;
-                config_file >> mean >> stddev;
+            } else if (timeout_distribution_type == "NORMAL") {
+                auto params = node["timeout_distribution_params"].get_array();
+                double mean = params.at(0).get_double();
+                double stddev = params.at(1).get_double();
                 timeout_dist = new NormalDistribution(mean, stddev);
-            } else if (timeout_dist_type == "DETERMINISTIC") {
+            } else if (timeout_distribution_type == "DETERMINISTIC") {
                 timeout_dist = new ConstDistribution(0);
             } else {
                 std::cerr << "Unknown timeout time distribution type in config file!" << std::endl;
                 exit(1);
             }
             ClientNode* client_node = new ClientNode(0, min_timeout, timeout_dist, think_time_dist); 
-            client_node->id = i; // Assign id to the node
             client_nodes.push_back(client_node);
+            client_node->id = id++;
         } else if (node_type == "SERVER") {
-            int num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size;
-            double core_context_switch_time, core_context_switch_overhead;
-            std::string service_dist_type;
-            config_file >> num_threads >> receiver_buffer_size >> total_cores >> thread_buffer_size >> core_buffer_size >> core_context_switch_time >> core_context_switch_overhead >> service_dist_type;
+            int num_threads = node["num_threads"].get_int64();
+            int receiver_buffer_size = node["receiver_buffer_size"].get_int64();
+            int total_cores = node["total_cores"].get_int64();
+            int thread_buffer_size = node["thread_buffer_size"].get_int64();
+            int core_buffer_size = node["core_buffer_size"].get_int64();
+            double core_context_switch_time = node["core_context_switch_time"].get_double();
+            double core_context_switch_overhead = node["core_context_switch_overhead"].get_double();
+            std::string_view service_time_distribution_type = node["service_time_distribution_type"];
             Distribution* service_time_dist;
-            if (service_dist_type == "UNIFORM") {
-                double min_service_time, max_service_time;
-                config_file >> min_service_time >> max_service_time;
+            if (service_time_distribution_type == "UNIFORM") {
+                auto params = node["service_time_distribution_params"].get_array();
+                double min_service_time = params.at(0).get_double();
+                double max_service_time = params.at(1).get_double();
                 service_time_dist = new UniformDistribution(min_service_time, max_service_time);
-            } else if (service_dist_type == "EXPONENTIAL") {
-                double lambda;
-                config_file >> lambda;
+            } else if (service_time_distribution_type == "EXPONENTIAL") {
+                auto params = node["service_time_distribution_params"].get_array();
+                double lambda = params.at(0).get_double();
                 service_time_dist = new ExponentialDistribution(lambda);
-            } else if (service_dist_type == "DETERMINISTIC") {
-                double constant_time;
-                config_file >> constant_time;
+            } else if (service_time_distribution_type == "DETERMINISTIC") {
+                auto params = node["service_time_distribution_params"].get_array();
+                double constant_time = params.at(0).get_double();
                 service_time_dist = new ConstDistribution(constant_time);
             } else {
                 std::cerr << "Unknown service time distribution type in config file!" << std::endl;
                 exit(1);
             }
             ServerNode* server_node = new ServerNode(num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_dist);
-            server_node->id = i; // Assign id to the node
             server_nodes.push_back(server_node);
+            server_node->id = id++;
         } else {
             std::cerr << "Unknown node type in config file!" << std::endl;
             exit(1);
         }
     }
 
-    // fill next_nodes and next_node_dist for each node based on the adjacency matrix
-    for (ClientNode* client_node : client_nodes) {
-        std::vector<double> probs;
-        for (ClientNode* other_client_node : client_nodes) {
-            double prob;
-            config_file >> prob;
-            probs.push_back(prob);
+    for(ClientNode* client_node : client_nodes) {
+        // Index of this client node is it's id. Use it to get that vector of values from the adjacency matrix
+        auto adjacency_row = config["adjacency_matrix"].get_array().at(client_node->id).get_array();
+        for(ClientNode* other_client_node : client_nodes) {
             client_node->next_nodes.push_back(other_client_node);
         }
-        for (ServerNode* server_node : server_nodes) {
-            double prob;
-            config_file >> prob;
-            probs.push_back(prob);
+        for(ServerNode* server_node : server_nodes) {
             client_node->next_nodes.push_back(server_node);
         }
-        client_node->next_node_dist = std::discrete_distribution<int>(probs.begin(), probs.end());
+        client_node->next_node_dist = std::discrete_distribution<int>(adjacency_row.begin(), adjacency_row.end());
     }
-    for (ServerNode* server_node : server_nodes) {
-        std::vector<double> probs;
-        for (ClientNode* client_node : client_nodes) {
-            double prob;
-            config_file >> prob;
-            probs.push_back(prob);
+
+    for(ServerNode* server_node : server_nodes) {
+        // Index of this server node is it's id. Use it to get that vector of values from the adjacency matrix
+        auto adjacency_row = config["adjacency_matrix"].get_array().at(server_node->id).get_array();
+        for(ClientNode* client_node : client_nodes) {
             server_node->next_nodes.push_back(client_node);
         }
-        for (ServerNode* other_server_node : server_nodes) {
-            double prob;
-            config_file >> prob;
-            probs.push_back(prob);
+        for(ServerNode* other_server_node : server_nodes) {
             server_node->next_nodes.push_back(other_server_node);
         }
-        server_node->next_node_dist = std::discrete_distribution<int>(probs.begin(), probs.end());
+        server_node->next_node_dist = std::discrete_distribution<int>(adjacency_row.begin(), adjacency_row.end());
     }
 }
 
@@ -143,7 +127,10 @@ void NetworkSim::print_config(){
     std::cout << "==========================" << std::endl;
     for (ClientNode* client_node : client_nodes) {
         std::cout << "Client Node ID: " << client_node->id << std::endl;
-        std::cout << "Number of Users: " << client_node->num_users << std::endl;
+        std::cout << "Minimum Number of Users: " << min_num_users << std::endl;
+        std::cout << "Maximum Number of Users: " << max_num_users << std::endl;
+        std::cout << "Step Size for Users: " << step_size << std::endl;
+        std::cout << "Minimum Timeout: " << client_node->min_timeout << std::endl;
         std::cout << "Think Time Distribution: ";
         if (dynamic_cast<UniformDistribution*>(client_node->think_time)) {
             std::cout << "Uniform" << std::endl;
@@ -155,6 +142,21 @@ void NetworkSim::print_config(){
         } else if (dynamic_cast<ConstDistribution*>(client_node->think_time)) {
             std::cout << "Deterministic" << std::endl;
             std::cout << "Think Time: " << dynamic_cast<ConstDistribution*>(client_node->think_time)->value << std::endl;
+        } else {
+            std::cout << "Unknown" << std::endl;
+        }
+        std::cout << "Timeout Distribution: ";
+        if (dynamic_cast<UniformDistribution*>(client_node->timeout_dist)) {
+            std::cout << "Uniform" << std::endl;
+            std::cout << "Min Timeout: " << dynamic_cast<UniformDistribution*>(client_node->timeout_dist)->a << std::endl;
+            std::cout << "Max Timeout: " << dynamic_cast<UniformDistribution*>(client_node->timeout_dist)->b << std::endl;
+        } else if (dynamic_cast<NormalDistribution*>(client_node->timeout_dist)) {
+            std::cout << "Normal" << std::endl;
+            std::cout << "Mean: " << dynamic_cast<NormalDistribution*>(client_node->timeout_dist)->mean << std::endl;
+            std::cout << "Stddev: " << dynamic_cast<NormalDistribution*>(client_node->timeout_dist)->stddev << std::endl;
+        } else if (dynamic_cast<ConstDistribution*>(client_node->timeout_dist)) {
+            std::cout << "Deterministic" << std::endl;
+            std::cout << "Timeout: " << dynamic_cast<ConstDistribution*>(client_node->timeout_dist)->value << std::endl;
         } else {
             std::cout << "Unknown" << std::endl;
         }
