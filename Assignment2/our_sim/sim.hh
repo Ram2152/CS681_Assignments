@@ -13,6 +13,7 @@ class Sim {
     // Store all requests for statistics
     std::vector<Request*> all_requests;
 public:
+    double get_max_time(){return max_time;}
     Distribution* think_time_dist;
     std::priority_queue<Event*, std::vector<Event*>, EventComparator> event_queue;
     Sim(Config config);

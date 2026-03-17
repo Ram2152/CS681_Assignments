@@ -8,10 +8,10 @@ SRCS = sim.cc node.cc utils.cc event.cc config.cc networksim.cc
 OBJS = $(SRCS:.cpp=.o)
 OBJS := $(OBJS:.cc=.o)
 
-$(TARGETSIM): $(OBJS)
+$(TARGETSIM): $(OBJS) main_qs.cpp
 	$(CXX) $(CXXFLAGS) -o $(TARGETSIM) main_qs.cpp $(OBJS)
 
-$(TARGETNETSIM): $(OBJS)
+$(TARGETNETSIM): $(OBJS) main.cpp
 	$(CXX) $(CXXFLAGS) -o $(TARGETNETSIM) main.cpp $(OBJS)
 
 %.o: %.cpp

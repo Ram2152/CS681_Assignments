@@ -7,10 +7,11 @@ class ClientNode;
 class ServerNode;
 
 class NetworkSim {
+    public:
     std::vector<ClientNode*> client_nodes;
     std::vector<ServerNode*> server_nodes;
     // Store all requests for statistics
-public:
+
     double max_time;
     std::vector<Request*> all_requests;
     std::priority_queue<Event*, std::vector<Event*>, EventComparator> event_queue;

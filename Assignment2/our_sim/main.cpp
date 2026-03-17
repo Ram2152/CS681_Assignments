@@ -71,9 +71,9 @@ int main(int argc, char* argv[]) {
     // In a run, iterate from 5 users to 200 users, and for each user count, call sim.run() and sim.print_stats() to get the stats and write it to a csv file. The csv file should have the following columns: user_count, avg_response_time, good_throughput, bad_throughput, total_throughput, drop_percentage, server_0_utilization, server_1_utilization, server_2_utilization, server_3_utilization. The server_x_utilization columns should contain the overall utilization of each server node (total busy time of all cores divided by (number of cores * max_time)). The csv file should be named "simulation_results.csv". After all runs are done, calculate the confidence intervals for the average response time at 90%, 95%, and 99% confidence levels and print them to the console.
 
     std::ofstream csv_file("simulation_results.csv");
-    csv_file << "user_count,avg_response_time,good_throughput,bad_throughput,total_throughput,drop_percentage";
-    for (int server_id = 0; server_id < 4; server_id++) {
-        csv_file << ",server_" << server_id << "_utilization";
+    csv_file << "user_count,avg_response_time,good_throughput,bad_throughput,total_throughput,drop_percentage,";
+    for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+        csv_file << "server_" << server_id << "_utilization,";
     }
     csv_file << std::endl;
 
@@ -97,43 +97,38 @@ int main(int argc, char* argv[]) {
         double average_bad_throughput = 0;
         double average_total_throughput = 0;
         double average_drop_percentage = 0;
-        std::vector<std::tuple<int, double>> average_server_utilizations; // server_id -> average utilization percentage
-    
+        std::vector<double> average_cpu_times(sim.server_nodes.size(), 0);
+        std::vector<double> average_server_utilizations(sim.server_nodes.size(), 0);
+
         int index = (user_count - 5) / 5;
         average_resp_time = std::accumulate(avg_response_times[index].begin(), avg_response_times[index].end(), 0.0) / avg_response_times[index].size();
         average_good_throughput = std::accumulate(good_throughputs[index].begin(), good_throughputs[index].end(), 0.0) / good_throughputs[index].size();
         average_bad_throughput = std::accumulate(bad_throughputs[index].begin(), bad_throughputs[index].end(), 0.0) / bad_throughputs[index].size();
         average_total_throughput = std::accumulate(total_throughputs[index].begin(), total_throughputs[index].end(), 0.0) / total_throughputs[index].size();
         average_drop_percentage = std::accumulate(drop_rates[index].begin(), drop_rates[index].end(), 0.0) / drop_rates[index].size();
-        
-        // Calculate average server utilization across all runs
-        std::map<int, std::vector<double>> server_utilizations; // server_id -> vector of utilizations across runs
-        for (const auto& run_cpu_times : all_cpu_times[index]) {
-            for (const auto& entry : run_cpu_times) {
-                int server_id = std::get<0>(entry);
-                int core_id = std::get<1>(entry);
-                double busy_time = std::get<2>(entry);
-                double utilization = (busy_time / sim.max_time) * 100;
-                server_utilizations[server_id].push_back(utilization);
+        for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+            double average_busy_time = 0;
+            for (const auto& run_cpu_times : all_cpu_times[index]) {
+                for (const auto& entry : run_cpu_times) {
+                    int s_id = std::get<0>(entry);
+                    double busy_time = std::get<2>(entry);
+                    // std::cerr << "Server " << s_id << " Core " << core_id << " Busy Time in this run: " << busy_time << " seconds" << std::endl;
+                    if (s_id == server_id + (int)sim.client_nodes.size()) {
+                        average_busy_time += busy_time;
+                    }
+                }
             }
+            std::cout << "Average Busy Time for Server " << server_id << ": " << average_busy_time << " seconds" << std::endl;
+            average_busy_time /= all_cpu_times[index].size(); // Average busy time across all runs for this server
+            // std::cerr << "Average Busy Time for Server " << server_id << ": " << average_busy_time << " seconds" << std::endl;
+            average_cpu_times[server_id] = average_busy_time;
+            average_server_utilizations[server_id] = (average_busy_time / (sim.server_nodes[server_id]->worker.cores.size() * sim.max_time)) * 100;
         }
-        for (const auto& server_entry : server_utilizations) {
-            int server_id = server_entry.first;
-            const auto& utilizations = server_entry.second;
-            double average_utilization = std::accumulate(utilizations.begin(), utilizations.end(), 0.0) / utilizations.size();
-            average_server_utilizations.push_back({server_id, average_utilization});
-        }
+
         // Write to CSV
         csv_file << user_count << "," << average_resp_time << "," << average_good_throughput << "," << average_bad_throughput << "," << average_total_throughput << "," << average_drop_percentage;
-        for (int server_id = 0; server_id < 4; server_id++) {
-            auto it = std::find_if(average_server_utilizations.begin(), average_server_utilizations.end(), [server_id](const std::tuple<int, double>& entry) {
-                return std::get<0>(entry) == server_id;
-            });
-            if (it != average_server_utilizations.end()) {
-                csv_file << "," << std::get<1>(*it);
-            } else {
-                csv_file << ",0"; // If no data for this server, write 0
-            }
+        for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+            csv_file << "," << average_server_utilizations[server_id];
         }
         csv_file << std::endl;
         auto [ci_90_lower, ci_90_upper] = calculate_confidence_interval(avg_response_times[index], 0.90);

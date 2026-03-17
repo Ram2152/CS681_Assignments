@@ -148,7 +148,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             if (!current_event->core->thread_buffer.empty()) {
                 Thread* next_thread = current_event->core->thread_buffer.front();
                 current_event->core->thread_buffer.pop();
-                Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
+                Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
                 if(thread_process_event->timestamp <= sim->max_time) {
                     sim->event_queue.push(thread_process_event);
                     worker.busy_cores++;
