@@ -52,9 +52,10 @@ public:
     double min_timeout;
     Distribution* timeout_dist;
     Distribution* think_time;
+    bool resend_on_timeout;
     void set_num_users(int num_users);
 
-    ClientNode(int num_users, double min_timeout, Distribution* timeout_dist, Distribution* think_time) : num_users(num_users), min_timeout(min_timeout), timeout_dist(timeout_dist), think_time(think_time) {}
+    ClientNode(int num_users, double min_timeout, Distribution* timeout_dist, Distribution* think_time, bool resend_on_timeout) : num_users(num_users), min_timeout(min_timeout), timeout_dist(timeout_dist), think_time(think_time), resend_on_timeout(resend_on_timeout) {}
 
     void process(Event* event, NetworkSim* sim) override;
 };

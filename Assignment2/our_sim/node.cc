@@ -230,13 +230,15 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
     if (event->type == EventType::TIMEOUT) {
         if (event->request->departure_time == -1) {
             event->request->timed_out = true;
-            Request* new_request = new Request(event->request->user_id, event->timestamp, 0); // Service time will be assigned when the request arrives at the server
-            sim->all_requests.push_back(new_request);
-            Node* next_node = this->get_next();
-            Event* arrival_event = new Event(event->timestamp, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
-            if(arrival_event->timestamp <= sim->max_time) {
-                sim->event_queue.push(arrival_event);
-                // output_file << "[Time " << event->timestamp << "] TIMEOUT: User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " timed out. Scheduled new ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp << " to Node ID: " << next_node->id << std::endl;
+            if (resend_on_timeout) {
+                Request* new_request = new Request(event->request->user_id, event->timestamp, 0); // Service time will be assigned when the request arrives at the server
+                sim->all_requests.push_back(new_request);
+                Node* next_node = this->get_next();
+                Event* arrival_event = new Event(event->timestamp, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
+                if(arrival_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(arrival_event);
+                    // output_file << "[Time " << event->timestamp << "] TIMEOUT: User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " timed out. Scheduled new ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp << " to Node ID: " << next_node->id << std::endl;
+                }
             }
         }
         return;

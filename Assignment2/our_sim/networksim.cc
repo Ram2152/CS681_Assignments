@@ -55,7 +55,8 @@ NetworkSim::NetworkSim(std::string input_file) {
                 std::cerr << "Unknown timeout time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            ClientNode* client_node = new ClientNode(0, min_timeout, timeout_dist, think_time_dist); 
+            bool resend_on_timeout = node["resend_on_timeout"].get_bool();
+            ClientNode* client_node = new ClientNode(0, min_timeout, timeout_dist, think_time_dist, resend_on_timeout); 
             client_nodes.push_back(client_node);
             client_node->id = id++;
         } else if (node_type == "SERVER") {
