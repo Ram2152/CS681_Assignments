@@ -26,18 +26,21 @@ public:
     Receiver receiver;
     Worker worker;
     Distribution* service_time_dist;
+    std::string scheduling_policy;
 
     ServerNode(int num_threads,
                int receiver_buffer_size,
                int total_cores,
                int thread_buffer_size,
                int core_buffer_size,
+               std::string scheduling_policy,
                double core_context_switch_time,
                double core_context_switch_overhead,
                Distribution* service_time_dist)
         : receiver(num_threads, receiver_buffer_size),
           worker(total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead),
-          service_time_dist(service_time_dist) {}
+          service_time_dist(service_time_dist),
+          scheduling_policy(scheduling_policy) {}
 
     void process(Event* event, NetworkSim* sim) override;
     double total_cpu_time();

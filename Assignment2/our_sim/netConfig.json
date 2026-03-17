@@ -21,6 +21,7 @@
             "total_cores": 10,
             "thread_buffer_size": 100,
             "core_buffer_size": 10,
+            "scheduling_policy": "FCFS",
             "core_context_switch_time": 5,
             "core_context_switch_overhead": 0.01,
             "service_time_distribution_type": "DETERMINISTIC",

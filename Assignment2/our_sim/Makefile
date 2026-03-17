@@ -4,7 +4,7 @@ LDFLAGS = -L/opt/homebrew/lib -lsimdjson
 
 TARGET = networksim
 
-SRCS = node.cc utils.cc event.cc config.cc networksim.cc
+SRCS = node.cc utils.cc event.cc networksim.cc
 OBJS = $(SRCS:.cpp=.o)
 OBJS := $(OBJS:.cc=.o)
 

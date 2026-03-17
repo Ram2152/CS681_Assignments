@@ -64,8 +64,23 @@ NetworkSim::NetworkSim(std::string input_file) {
             int total_cores = node["total_cores"].get_int64();
             int thread_buffer_size = node["thread_buffer_size"].get_int64();
             int core_buffer_size = node["core_buffer_size"].get_int64();
+            std::string_view scheduling_policy_str = node["scheduling_policy"];
             double core_context_switch_time = node["core_context_switch_time"].get_double();
             double core_context_switch_overhead = node["core_context_switch_overhead"].get_double();
+            if (scheduling_policy_str == "FCFS") {
+                core_context_switch_time = max_time; // Effectively no context switching for FCFS
+                core_context_switch_overhead = 0;
+                scheduling_policy_str = "FCFS";
+            } else if (scheduling_policy_str == "SJF") {
+                core_context_switch_time = max_time; // Effectively no context switching for SJF
+                core_context_switch_overhead = 0;
+                scheduling_policy_str = "SJF";
+            } else if (scheduling_policy_str == "RR") {
+                scheduling_policy_str = "RR";
+            } else {
+                std::cerr << "Unknown scheduling policy in config file!" << std::endl;
+                exit(1);
+            }
             std::string_view service_time_distribution_type = node["service_time_distribution_type"];
             Distribution* service_time_dist;
             if (service_time_distribution_type == "UNIFORM") {
@@ -85,7 +100,7 @@ NetworkSim::NetworkSim(std::string input_file) {
                 std::cerr << "Unknown service time distribution type in config file!" << std::endl;
                 exit(1);
             }
-            ServerNode* server_node = new ServerNode(num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, core_context_switch_time, core_context_switch_overhead, service_time_dist);
+            ServerNode* server_node = new ServerNode(num_threads, receiver_buffer_size, total_cores, thread_buffer_size, core_buffer_size, (std::string)scheduling_policy_str, core_context_switch_time, core_context_switch_overhead, service_time_dist);
             server_nodes.push_back(server_node);
             server_node->id = id++;
         } else {
@@ -169,6 +184,7 @@ void NetworkSim::print_config(){
         std::cout << "Total Cores: " << server_node->worker.total_cores << std::endl;
         std::cout << "Thread Buffer Size: " << server_node->worker.thread_buffer_size << std::endl;
         std::cout << "Core Buffer Size: " << server_node->worker.cores[0]->thread_buffer_size << std::endl;
+        std::cout << "Scheduling Policy: " << server_node->scheduling_policy << std::endl;
         std::cout << "Core Context Switch Time: " << server_node->worker.core_context_switch_time << std::endl;
         std::cout << "Core Context Switch Overhead: " << server_node->worker.core_context_switch_overhead << std::endl;
         std::cout << "Service Time Distribution: " << std::endl;
@@ -312,13 +328,13 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
     
     for (ServerNode* server_node : server_nodes) {
         while (!server_node->worker.thread_queue.empty()) {
-            Thread* thread = server_node->worker.thread_queue.front();
+            Thread* thread = server_node->worker.thread_queue.top().second;
             server_node->worker.thread_queue.pop();
             thread->current_request = nullptr; // Free the thread
         }
         for (Core* core : server_node->worker.cores) {
             while (!core->thread_buffer.empty()) {
-                Thread* thread = core->thread_buffer.front();
+                Thread* thread = core->thread_buffer.top().second;
                 core->thread_buffer.pop();
                 thread->current_request = nullptr; // Free the thread
             }
@@ -332,25 +348,6 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
         delete request;
     }
     all_requests.clear();
-
-    // for (ServerNode* server_node : server_nodes) {
-    //     std::cout << "Receiver's Request Queue Size: " << server_node->receiver.request_queue.size() << std::endl;
-    //     for (Thread* thread : server_node->receiver.thread_pool.threads) {
-    //         if (thread->current_request != nullptr) {
-    //             std::cout << "Forgot to clear receiver's thread pool" << std::endl;
-    //         }
-    //     }
-
-    //     std::cout << "Worker's Thread Queue Size: " << server_node->worker.thread_queue.size() << std::endl;
-    //     for (Core* core : server_node->worker.cores) {
-    //         if (core->busy) {
-    //             std::cout << "Core is still busy" << std::endl;
-    //         }
-    //         if (core->thread_buffer.size() != 0) {
-    //             std::cout << "Core's thread buffer is not cleared" << std::endl;
-    //         }
-    //     }
-    // }
 
     for (ServerNode* server_node : server_nodes) {
         for (Thread* thread : server_node->receiver.thread_pool.threads) {

@@ -9,7 +9,6 @@
 #include <random>
 #include <tuple>
 #include "utils.hh"
-#include "config.hh"
 #include "event.hh"
 #include "node.hh"
 #include "networksim.hh"

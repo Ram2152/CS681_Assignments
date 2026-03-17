@@ -31,7 +31,14 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             } else {
                 // If request buffer is full, the request is dropped (not added to the queue)
                 if ((int)receiver.request_queue.size() < receiver.receiver_buffer_size) {
-                    receiver.request_queue.push(current_event->request);
+                    if (scheduling_policy == "SJF") {
+                        receiver.request_queue.push({current_event->request->service_time, current_event->request});
+                    } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
+                        receiver.request_queue.push({current_event->timestamp, current_event->request});
+                    } else {
+                        std::cerr << "Unknown scheduling policy!" << std::endl;
+                        exit(1);
+                    }
                     // output_file << "No idle threads. Added Request ID: " << current_event->request->id << " to the receiver queue at Server Node ID: " << this->id << std::endl;
                 } else {
                     current_event->request->is_dropped = true;
@@ -55,13 +62,27 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                         // output_file << "Assigned Thread ID: " << current_event->thread->id << " to free Core ID: " << assigned_core->id << " for processing at Server Node ID: " << this->id << std::endl;
                     }
                 } else {
-                    assigned_core->thread_buffer.push(current_event->thread);
+                    if (scheduling_policy == "SJF") {
+                        assigned_core->thread_buffer.push({current_event->request->remaining_service_time, current_event->thread});
+                    } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
+                        assigned_core->thread_buffer.push({current_event->timestamp, current_event->thread});
+                    } else {
+                        std::cerr << "Unknown scheduling policy!" << std::endl;
+                        exit(1);
+                    }
                     // output_file << "No free cores. Added Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << assigned_core->id << " at Server Node ID: " << this->id << std::endl;
                 }
             } else {
                 // No free core available, try to add the thread to the worker's thread queue
                 if ((int)worker.thread_queue.size() < worker.thread_buffer_size) {
-                    worker.thread_queue.push(current_event->thread);
+                    if (scheduling_policy == "SJF") {
+                        worker.thread_queue.push({current_event->request->remaining_service_time, current_event->thread});
+                    } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
+                        worker.thread_queue.push({current_event->timestamp, current_event->thread});
+                    } else {
+                        std::cerr << "Unknown scheduling policy!" << std::endl;
+                        exit(1);
+                    }
                     // output_file << "No free cores. Added Thread ID: " << current_event->thread->id << " to the worker thread queue at Server Node ID: " << this->id << std::endl;
                 } else {
                     // Thread is dropped, we can log this if needed
@@ -110,12 +131,19 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
         case EventType::CONTEXT_SWITCH: {
             // output_file << "[Time " << current_event->timestamp << "] Context switch for Thread ID: " << current_event->thread->id << " on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
             if (!current_event->core->thread_buffer.empty()) {
-                Thread* next_thread = current_event->core->thread_buffer.front();
+                Thread* next_thread = current_event->core->thread_buffer.top().second;
                 current_event->core->thread_buffer.pop();
                 Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
                 if(thread_process_event->timestamp <= sim->max_time) {
                     sim->event_queue.push(thread_process_event);
-                    current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
+                    if (scheduling_policy == "RR") {
+                        current_event->core->thread_buffer.push({current_event->timestamp, current_event->thread}); // Put the current thread back into the core's thread buffer for RR scheduling
+                    } else if (scheduling_policy == "SJF" || scheduling_policy == "FCFS") {
+                        current_event->core->thread_buffer.push({current_event->request->remaining_service_time, current_event->thread}); // Put the current thread back into the core's thread buffer based on remaining service time for SJF scheduling
+                    } else {
+                        std::cerr << "Unknown scheduling policy!" << std::endl;
+                        exit(1);
+                    }
                     current_event->core->total_busy_time += current_event->core->core_context_switch_overhead; // Account for context switch overhead in CPU time
                     // output_file << "Context switch: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " and scheduled Thread ID: " << next_thread->id << " for processing at Server Node ID: " << this->id << std::endl;
                 }
@@ -146,7 +174,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             }
         
             if (!current_event->core->thread_buffer.empty()) {
-                Thread* next_thread = current_event->core->thread_buffer.front();
+                Thread* next_thread = current_event->core->thread_buffer.top().second;
                 current_event->core->thread_buffer.pop();
                 Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
                 if(thread_process_event->timestamp <= sim->max_time) {
@@ -157,9 +185,16 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 }
             }
             if (!worker.thread_queue.empty()) {
-                Thread* next_thread = worker.thread_queue.front();
+                Thread* next_thread = worker.thread_queue.top().second;
                 worker.thread_queue.pop();
-                current_event->core->thread_buffer.push(next_thread);
+                if (scheduling_policy == "SJF") {
+                    current_event->core->thread_buffer.push({next_thread->current_request->remaining_service_time, next_thread});
+                } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
+                    current_event->core->thread_buffer.push({current_event->timestamp, next_thread});
+                } else {
+                    std::cerr << "Unknown scheduling policy!" << std::endl;
+                    exit(1);
+                }
                 // output_file << "Departure: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
                 if (!current_event->core->busy) {
                     Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
@@ -172,7 +207,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 }
             } 
             if (!receiver.request_queue.empty()) {
-                Request* next_request = receiver.request_queue.front();
+                Request* next_request = receiver.request_queue.top().second;
                 receiver.request_queue.pop();
                 Thread* idle_thread = receiver.thread_pool.find_idle_thread();
                 idle_thread->current_request = next_request;

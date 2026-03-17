@@ -39,7 +39,7 @@ public:
 
 class Receiver{
 public:
-    std::queue<Request*> request_queue;
+    std::priority_queue<std::pair<double, Request*>, std::vector<std::pair<double, Request*>>, std::greater<std::pair<double, Request*>>> request_queue;
     ThreadPool thread_pool;
     int receiver_buffer_size;
     Receiver(int num_threads, int receiver_buffer_size);
@@ -55,7 +55,7 @@ public:
     double core_context_switch_time;
     double core_context_switch_overhead;
     double total_busy_time;
-    std::queue<Thread*> thread_buffer;
+    std::priority_queue<std::pair<double, Thread*>, std::vector<std::pair<double, Thread*>>, std::greater<std::pair<double, Thread*>>> thread_buffer;
     Core(int thread_buffer_size, double core_context_switch_time, double core_context_switch_overhead);
     ~Core();
 };
@@ -68,7 +68,7 @@ public:
     double core_context_switch_time;
     double core_context_switch_overhead;
     std::vector<Core*> cores;
-    std::queue<Thread*> thread_queue;
+    std::priority_queue<std::pair<double, Thread*>, std::vector<std::pair<double, Thread*>>, std::greater<std::pair<double, Thread*>>> thread_queue;
     Worker(int total_cores, int thread_buffer_size, int core_buffer_size, double core_context_switch_time, double core_context_switch_overhead);
     bool has_free_core();
     Core* find_free_core();
