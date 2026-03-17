@@ -270,8 +270,8 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
     int bad_completed_requests = 0;
     int good_completed_requests = 0;
     int dropped_requests = 0;
-    int total_requests = all_requests.size();
-    std::cout << "Total Requests: " << total_requests << std::endl;
+    // int total_requests = all_requests.size();
+    // std::cout << "Total Requests: " << total_requests << std::endl;
 
     for (Request* request : all_requests) {
         if (request->departure_time > 0) {
