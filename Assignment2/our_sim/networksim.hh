@@ -17,6 +17,7 @@ public:
     NetworkSim(std::string input_file);
     void print_config();
     void run();
+    void set_num_users(int ClientNodeNum, int num_users);
     std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>> print_stats();
     ~NetworkSim();
 };

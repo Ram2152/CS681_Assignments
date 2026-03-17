@@ -137,9 +137,11 @@ NetworkSim::NetworkSim(std::string input_file) {
 }
 
 void NetworkSim::print_config(){
+    std::cout << "==========================" << std::endl;
     std::cout << "Number of Client Nodes: " << client_nodes.size() << std::endl;
     std::cout << "Number of Server Nodes: " << server_nodes.size() << std::endl;
     std::cout << "Max Simulation Time: " << max_time << std::endl;
+    std::cout << "==========================" << std::endl;
     for (ClientNode* client_node : client_nodes) {
         std::cout << "Client Node ID: " << client_node->id << std::endl;
         std::cout << "Number of Users: " << client_node->num_users << std::endl;
@@ -157,6 +159,7 @@ void NetworkSim::print_config(){
         } else {
             std::cout << "Unknown" << std::endl;
         }
+        std::cout << "==========================" << std::endl;
     }
     for (ServerNode* server_node : server_nodes) {
         std::cout << "Server Node ID: " << server_node->id << std::endl;
@@ -181,6 +184,7 @@ void NetworkSim::print_config(){
         } else {
             std::cout << "Unknown" << std::endl;
         }
+        std::cout << "==========================" << std::endl;
     }
     std::cout << "Adjacency Matrix:" << std::endl;
     for (ClientNode* client_node : client_nodes) {
@@ -203,6 +207,7 @@ void NetworkSim::print_config(){
         }
         std::cout << std::endl;
     }
+    std::cout << "==========================" << std::endl;
 }
 
 
@@ -286,7 +291,7 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
     double good_throughput = good_completed_requests / max_time;
     double bad_throughput = bad_completed_requests / max_time;
     double total_throughput = (good_completed_requests + bad_completed_requests) / max_time;
-    double dropped_request_rate = dropped_requests / max_time;
+    double dropped_request_percentage = dropped_requests / all_requests.size();
     std::vector<std::tuple<int, int, double>> cpu_times;
     for (ServerNode* server_node : server_nodes) {
         for (Core* core : server_node->worker.cores) {
@@ -363,7 +368,7 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
         }
     }
 
-    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_rate, cpu_times};
+    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_percentage, cpu_times};
 }
 
 NetworkSim::~NetworkSim() {
@@ -384,4 +389,8 @@ NetworkSim::~NetworkSim() {
         event_queue.pop();
         delete event;
     }
+}
+
+void NetworkSim::set_num_users(int c, int n) {
+    client_nodes[c]->set_num_users(n);
 }

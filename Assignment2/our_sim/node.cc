@@ -8,6 +8,10 @@ double ServerNode::total_cpu_time() {
     return total_cpu_time;
 }
 
+void ClientNode::set_num_users(int n) {
+    ClientNode::num_users = n;
+}
+
 void ServerNode::process(Event* current_event, NetworkSim* sim) {
     std::ofstream output_file("network_log.txt", std::ios_base::app); // Open the file in append mode
     switch (current_event->type) {

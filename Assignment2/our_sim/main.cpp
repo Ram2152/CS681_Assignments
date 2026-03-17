@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Good Throughput: " << good_throughputs[run] << " req/sec" << std::endl;
         std::cout << "Bad Throughput: " << bad_throughputs[run] << " req/sec" << std::endl;
         std::cout << "Total Throughput: " << total_throughputs[run] << " req/sec" << std::endl;
-        std::cout << "Request Drop Rate: " << drop_rates[run] * 100 << " req/sec" << std::endl;
+        std::cout << "Request Drop Percentage: " << drop_rates[run] * 100 << " %" << std::endl;
         // For each core, divide the total busy time by max_time to get the CPU utilization percentage
         // For each server node, print the CPU utilization of each core
         // For each server node, print the CPU utilization of the server node as a whole (total busy time of all cores divided by (number of cores * max_time))

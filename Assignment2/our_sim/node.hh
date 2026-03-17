@@ -49,6 +49,7 @@ public:
     double min_timeout;
     Distribution* timeout_dist;
     Distribution* think_time;
+    void set_num_users(int num_users);
 
     ClientNode(int num_users, double min_timeout, Distribution* timeout_dist, Distribution* think_time) : num_users(num_users), min_timeout(min_timeout), timeout_dist(timeout_dist), think_time(think_time) {}
 
