@@ -75,6 +75,8 @@ int main(int argc, char* argv[]) {
     for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
         csv_file << "server_" << server_id << "_utilization,";
     }
+    // Add 6 headers for confidence intervals of average response time at 90%, 95%, and 99% confidence levels
+    csv_file << "ci_90_lower,ci_90_upper,ci_95_lower,ci_95_upper,ci_99_lower,ci_99_upper";
     csv_file << std::endl;
 
     for (int user_count = 5; user_count <= 200; user_count += 5) {
@@ -130,10 +132,12 @@ int main(int argc, char* argv[]) {
         for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
             csv_file << "," << average_server_utilizations[server_id];
         }
-        csv_file << std::endl;
         auto [ci_90_lower, ci_90_upper] = calculate_confidence_interval(avg_response_times[index], 0.90);
         auto [ci_95_lower, ci_95_upper] = calculate_confidence_interval(avg_response_times[index], 0.95);
         auto [ci_99_lower, ci_99_upper] = calculate_confidence_interval(avg_response_times[index], 0.99);
+
+        csv_file << "," << ci_90_lower << "," << ci_90_upper << "," << ci_95_lower << "," << ci_95_upper << "," << ci_99_lower << "," << ci_99_upper;
+        csv_file << std::endl;
     }
     
     // for (int run = 0; run < num_of_runs; run++) {
