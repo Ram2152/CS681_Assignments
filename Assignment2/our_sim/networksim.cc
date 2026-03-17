@@ -229,7 +229,7 @@ void NetworkSim::run() {
     
     output_file << "------------------------" << std::endl;
 
-    while (!event_queue.empty() && event_queue.top()->timestamp < max_time) {
+    while (!event_queue.empty() && event_queue.top()->timestamp <= max_time) {
         output_file << "Current Time: " << event_queue.top()->timestamp << std::endl;
         Event* current_event = event_queue.top();
         event_queue.pop();

@@ -20,8 +20,10 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 idle_thread->current_request = current_event->request;
                 // Schedule Thread Arrive event for this thread
                 Event* thread_arrival_event = new Event(current_event->timestamp, EventType::THREAD_ARRIVAL, current_event->request, idle_thread, nullptr, this);
-                sim->event_queue.push(thread_arrival_event);
-                output_file << "Assigned Request ID: " << current_event->request->id << " to idle Thread ID: " << idle_thread->id << std::endl;
+                if(thread_arrival_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(thread_arrival_event);
+                    output_file << "Assigned Request ID: " << current_event->request->id << " to idle Thread ID: " << idle_thread->id << std::endl;
+                }
             } else {
                 // If request buffer is full, the request is dropped (not added to the queue)
                 if ((int)receiver.request_queue.size() < receiver.receiver_buffer_size) {
@@ -42,10 +44,12 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 if (!assigned_core->busy && assigned_core->thread_buffer.empty()) {
                     // Schedule a thread process event for this thread to start processing
                     Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread, assigned_core, this);
-                    sim->event_queue.push(thread_process_event);
-                    assigned_core->busy = true;
-                    worker.busy_cores++;
-                    output_file << "Assigned Thread ID: " << current_event->thread->id << " to free Core ID: " << assigned_core->id << " for processing at Server Node ID: " << this->id << std::endl;
+                    if(thread_process_event->timestamp <= sim->max_time) {
+                        sim->event_queue.push(thread_process_event);
+                        assigned_core->busy = true;
+                        worker.busy_cores++;
+                        output_file << "Assigned Thread ID: " << current_event->thread->id << " to free Core ID: " << assigned_core->id << " for processing at Server Node ID: " << this->id << std::endl;
+                    }
                 } else {
                     assigned_core->thread_buffer.push(current_event->thread);
                     output_file << "No free cores. Added Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << assigned_core->id << " at Server Node ID: " << this->id << std::endl;
@@ -71,21 +75,25 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             if (service_time_remaining <= current_event->core->core_context_switch_time) {
                 // Schedule departure event
                 Event* departure_event = new Event(current_event->timestamp + service_time_remaining, EventType::DEPARTURE, current_event->request, current_event->thread, current_event->core, this);
-                sim->event_queue.push(departure_event);
-                current_event->core->busy = true;
-                worker.busy_cores++;
-                current_event->request->remaining_service_time = 0;
-                current_event->core->total_busy_time += service_time_remaining;
-                output_file << "Scheduled DEPARTURE event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp + service_time_remaining << std::endl;
+                if(departure_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(departure_event);
+                    current_event->core->busy = true;
+                    worker.busy_cores++;
+                    current_event->request->remaining_service_time = 0;
+                    current_event->core->total_busy_time += service_time_remaining;
+                    output_file << "Scheduled DEPARTURE event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp + service_time_remaining << std::endl;
+                }
             } else {
                 // Schedule context switch event
                 Event* context_switch_event = new Event(current_event->timestamp + current_event->core->core_context_switch_time, EventType::CONTEXT_SWITCH, current_event->request, current_event->thread, current_event->core, this);
-                sim->event_queue.push(context_switch_event);
-                current_event->core->busy = true;
-                worker.busy_cores++;
-                current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
-                current_event->core->total_busy_time += current_event->core->core_context_switch_time;
-                output_file << "Scheduled CONTEXT_SWITCH event for Thread ID: " << current_event->thread->id << " at time " << current_event->timestamp + current_event->core->core_context_switch_time << std::endl;
+                if(context_switch_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(context_switch_event);
+                    current_event->core->busy = true;
+                    worker.busy_cores++;
+                    current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
+                    current_event->core->total_busy_time += current_event->core->core_context_switch_time;
+                    output_file << "Scheduled CONTEXT_SWITCH event for Thread ID: " << current_event->thread->id << " at time " << current_event->timestamp + current_event->core->core_context_switch_time << std::endl;
+                }
             }
             break;
         }
@@ -95,15 +103,19 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Thread* next_thread = current_event->core->thread_buffer.front();
                 current_event->core->thread_buffer.pop();
                 Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
-                sim->event_queue.push(thread_process_event);
-                current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
-                current_event->core->total_busy_time += current_event->core->core_context_switch_overhead; // Account for context switch overhead in CPU time
-                output_file << "Context switch: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " and scheduled Thread ID: " << next_thread->id << " for processing at Server Node ID: " << this->id << std::endl;
+                if(thread_process_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(thread_process_event);
+                    current_event->core->thread_buffer.push(current_event->thread); // Put the current thread back into the core's thread buffer
+                    current_event->core->total_busy_time += current_event->core->core_context_switch_overhead; // Account for context switch overhead in CPU time
+                    output_file << "Context switch: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " and scheduled Thread ID: " << next_thread->id << " for processing at Server Node ID: " << this->id << std::endl;
+                }
             } else {
                 // No waiting threads in the core's buffer, schedule a thread process event for the current thread to continue processing immediately
                 Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread, current_event->core, this);
-                sim->event_queue.push(thread_process_event);
-                output_file << "Context switch: No waiting threads. Rescheduled Thread ID: " << current_event->thread->id << " for processing at Server Node ID: " << this->id << std::endl;
+                if(thread_process_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(thread_process_event);
+                    output_file << "Context switch: No waiting threads. Rescheduled Thread ID: " << current_event->thread->id << " for processing at Server Node ID: " << this->id << std::endl;
+                }
             }
             break;                
         }
@@ -115,17 +127,21 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             
             Node* next_node = this->get_next();
             Event* next_event = new Event(current_event->timestamp, EventType::ARRIVAL, current_event->request, nullptr, nullptr, next_node);
-            sim->event_queue.push(next_event);
-            output_file << "Scheduled ARRIVAL event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp << "to Node ID: " << next_node->id << std::endl;
+            if(next_event->timestamp <= sim->max_time) {
+                sim->event_queue.push(next_event);
+                output_file << "Scheduled ARRIVAL event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp << "to Node ID: " << next_node->id << std::endl;
+            }
         
             if (!current_event->core->thread_buffer.empty()) {
                 Thread* next_thread = current_event->core->thread_buffer.front();
                 current_event->core->thread_buffer.pop();
                 Event* thread_process_event = new Event(current_event->timestamp + current_event->core->core_context_switch_overhead, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
-                sim->event_queue.push(thread_process_event);
-                worker.busy_cores++;
-                current_event->core->busy = true;
-                output_file << "After departure, scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
+                if(thread_process_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(thread_process_event);
+                    worker.busy_cores++;
+                    current_event->core->busy = true;
+                    output_file << "After departure, scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
+                }
             }
             if (!worker.thread_queue.empty()) {
                 Thread* next_thread = worker.thread_queue.front();
@@ -134,10 +150,12 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 output_file << "Departure: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
                 if (!current_event->core->busy) {
                     Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
-                    sim->event_queue.push(thread_process_event);
-                    worker.busy_cores++;
-                    current_event->core->busy = true;
-                    output_file << "Departure: Scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
+                    if(thread_process_event->timestamp <= sim->max_time) {
+                        sim->event_queue.push(thread_process_event);
+                        worker.busy_cores++;
+                        current_event->core->busy = true;
+                        output_file << "Departure: Scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
+                    }
                 }
             } 
             if (!receiver.request_queue.empty()) {
@@ -146,8 +164,10 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Thread* idle_thread = receiver.thread_pool.find_idle_thread();
                 idle_thread->current_request = next_request;
                 Event* thread_arrival_event = new Event(current_event->timestamp, EventType::THREAD_ARRIVAL, next_request, idle_thread, nullptr, this);
-                sim->event_queue.push(thread_arrival_event);
-                output_file << "After departure, assigned Request ID: " << next_request->id << " to idle Thread ID: " << idle_thread->id << " and scheduled THREAD_ARRIVAL event at Server Node ID: " << this->id << std::endl;
+                if(thread_arrival_event->timestamp <= sim->max_time) {
+                    sim->event_queue.push(thread_arrival_event);
+                    output_file << "After departure, assigned Request ID: " << next_request->id << " to idle Thread ID: " << idle_thread->id << " and scheduled THREAD_ARRIVAL event at Server Node ID: " << this->id << std::endl;
+                }
             }
             break;
         }
@@ -166,8 +186,10 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
             sim->all_requests.push_back(new_request);
             Node* next_node = this->get_next();
             Event* arrival_event = new Event(event->timestamp, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
-            sim->event_queue.push(arrival_event);
-            output_file << "[Time " << event->timestamp << "] TIMEOUT: User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " timed out. Scheduled new ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp << " to Node ID: " << next_node->id << std::endl;
+            if(arrival_event->timestamp <= sim->max_time) {
+                sim->event_queue.push(arrival_event);
+                output_file << "[Time " << event->timestamp << "] TIMEOUT: User ID: " << event->request->user_id << " at Client Node ID: " << this->id << " timed out. Scheduled new ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp << " to Node ID: " << next_node->id << std::endl;
+            }
         }
         return;
     }
@@ -178,11 +200,15 @@ void ClientNode::process(Event* event, NetworkSim* sim) {
     Node* next_node = get_next();
     Request* new_request = new Request(event->request->user_id, event->timestamp + think_time, 0); // Service time will be assigned when the request arrives at the server
     Event* next_event = new Event(event->timestamp + think_time, EventType::ARRIVAL, new_request, nullptr, nullptr, next_node);
-    sim->event_queue.push(next_event);
-    sim->all_requests.push_back(new_request);
-    output_file << "Scheduled ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time << " to Node ID: " << next_node->id << std::endl;
+    if(next_event->timestamp <= sim->max_time) {
+        sim->event_queue.push(next_event);
+        sim->all_requests.push_back(new_request);
+        output_file << "Scheduled ARRIVAL event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time << " to Node ID: " << next_node->id << std::endl;
+    }
 
     Event* timeout_event = new Event(event->timestamp + think_time + min_timeout + this->timeout_dist->sample(), EventType::TIMEOUT, new_request, nullptr, nullptr, this);
-    sim->event_queue.push(timeout_event);
-    output_file << "Scheduled TIMEOUT event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time + min_timeout + this->timeout_dist->sample() << " at Client Node ID: " << this->id << std::endl;
+    if(timeout_event->timestamp <= sim->max_time) {
+        sim->event_queue.push(timeout_event);
+        output_file << "Scheduled TIMEOUT event for User ID: " << event->request->user_id << " at time " << event->timestamp + think_time + min_timeout + this->timeout_dist->sample() << " at Client Node ID: " << this->id << std::endl;
+    }
 }

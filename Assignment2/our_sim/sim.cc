@@ -339,7 +339,7 @@ std::tuple<double, double, double, double, double, double> Sim::print_stats() {
 
     all_requests.clear();
 
-    return {average_response_time, good_completed_requests / max_time, bad_completed_requests / max_time, (good_completed_requests + bad_completed_requests) / max_time, total_cpu_time / max_time, dropped_requests / max_time};
+    return {average_response_time, good_completed_requests / max_time, bad_completed_requests / max_time, (good_completed_requests + bad_completed_requests) / max_time, total_cpu_time / (max_time * worker.total_cores), dropped_requests / max_time};
 }
 
 Sim::~Sim() {

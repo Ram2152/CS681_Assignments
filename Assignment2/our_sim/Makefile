@@ -1,14 +1,18 @@
 CXX = g++-15
 CXXFLAGS = -std=c++17 -Wall -Wextra
 
-TARGET = main
+TARGETSIM = sim
+TARGETNETSIM = networksim
 
-SRCS = main.cpp networksim.cc node.cc utils.cc event.cc config.cc
+SRCS = sim.cc node.cc utils.cc event.cc config.cc networksim.cc
 OBJS = $(SRCS:.cpp=.o)
 OBJS := $(OBJS:.cc=.o)
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+$(TARGETSIM): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGETSIM) main_qs.cpp $(OBJS)
+
+$(TARGETNETSIM): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGETNETSIM) main.cpp $(OBJS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $<
