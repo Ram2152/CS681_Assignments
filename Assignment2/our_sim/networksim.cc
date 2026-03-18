@@ -44,11 +44,10 @@ NetworkSim::NetworkSim(std::string input_file) {
                 double min_think_time = params.at(0).get_double();
                 double max_think_time = params.at(1).get_double();
                 timeout_dist = new UniformDistribution(min_think_time, max_think_time);
-            } else if (timeout_distribution_type == "NORMAL") {
+            } else if (timeout_distribution_type == "EXPONENTIAL") {
                 auto params = node["timeout_distribution_params"].get_array();
-                double mean = params.at(0).get_double();
-                double stddev = params.at(1).get_double();
-                timeout_dist = new NormalDistribution(mean, stddev);
+                double lambda = params.at(0).get_double();
+                timeout_dist = new ExponentialDistribution(lambda);
             } else if (timeout_distribution_type == "DETERMINISTIC") {
                 timeout_dist = new ConstDistribution(0);
             } else {
@@ -166,10 +165,9 @@ void NetworkSim::print_config(){
             std::cout << "Uniform" << std::endl;
             std::cout << "Min Timeout: " << dynamic_cast<UniformDistribution*>(client_node->timeout_dist)->a << std::endl;
             std::cout << "Max Timeout: " << dynamic_cast<UniformDistribution*>(client_node->timeout_dist)->b << std::endl;
-        } else if (dynamic_cast<NormalDistribution*>(client_node->timeout_dist)) {
-            std::cout << "Normal" << std::endl;
-            std::cout << "Mean: " << dynamic_cast<NormalDistribution*>(client_node->timeout_dist)->mean << std::endl;
-            std::cout << "Stddev: " << dynamic_cast<NormalDistribution*>(client_node->timeout_dist)->stddev << std::endl;
+        } else if (dynamic_cast<ExponentialDistribution*>(client_node->timeout_dist)) {
+            std::cout << "Exponential" << std::endl;
+            std::cout << "Lambda: " << dynamic_cast<ExponentialDistribution*>(client_node->timeout_dist)->mean << std::endl;
         } else if (dynamic_cast<ConstDistribution*>(client_node->timeout_dist)) {
             std::cout << "Deterministic" << std::endl;
             std::cout << "Timeout: " << dynamic_cast<ConstDistribution*>(client_node->timeout_dist)->value << std::endl;
