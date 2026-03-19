@@ -1,37 +1,37 @@
 {
-    "num_runs":10,
+    "num_runs":1,
     "num_nodes": 2,
-    "max_time": 3000,
+    "max_time": 300,
     "nodes": [
         {
             "node_type": "CLIENT",
             "min_num_users": 5,
-            "max_num_users": 200,
+            "max_num_users": 350,
             "step_size": 5,
-            "think_time_distribution_type": "EXPONENTIAL",
-            "think_time_distribution_params": [5],
+            "think_time_distribution_type": "DETERMINISTIC",
+            "think_time_distribution_params": [6],
             "min_timeout": 5,
-            "timeout_distribution_type": "EXPONENTIAL",
-            "timeout_distribution_params": [0.5],
+            "timeout_distribution_type": "DETERMINISTIC",
+            "timeout_distribution_params": [0],
             "resend_on_timeout": false
         },
         {
             "node_type": "SERVER",
             "num_threads": 100,
             "receiver_buffer_size": 1000,
-            "total_cores": 10,
-            "thread_buffer_size": 100,
-            "core_buffer_size": 10,
-            "scheduling_policy": "RR",
+            "total_cores": 1,
+            "thread_buffer_size": 1000,
+            "core_buffer_size": 0,
+            "scheduling_policy": "FCFS",
             "core_context_switch_time": 5,
             "core_context_switch_overhead": 0.01,
-            "service_time_distribution_type": "EXPONENTIAL",
-            "service_time_distribution_params": [0.5]
+            "service_time_distribution_type": "DETERMINISTIC",
+            "service_time_distribution_params": [0.035]
         }
     ],
     "adjacency_matrix": [
         [0, 1],
         [1, 0]
     ],
-    "output_file": "withoutresendexp.csv"
+    "output_file": "help.csv"
 }

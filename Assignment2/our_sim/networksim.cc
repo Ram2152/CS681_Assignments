@@ -289,10 +289,13 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
     // int total_requests = all_requests.size();
     // std::cout << "Total Requests: " << total_requests << std::endl;
 
+    // std::ofstream resp_file("response_times.txt", std::ios_base::app);
+
     for (Request* request : all_requests) {
         if (request->departure_time > 0) {
             double response_time = request->departure_time - request->arrival_time;
             total_response_time += response_time;
+            // resp_file << response_time << " " << request->arrival_time << " " << request->departure_time << std::endl;
             if (!request->timed_out) {
                 good_completed_requests++;
             } else {

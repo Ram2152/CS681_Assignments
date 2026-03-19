@@ -55,10 +55,10 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 if (!assigned_core->busy && assigned_core->thread_buffer.empty()) {
                     // Schedule a thread process event for this thread to start processing
                     Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, current_event->request, current_event->thread, assigned_core, this);
+                    assigned_core->busy = true;
+                    worker.busy_cores++;
                     if(thread_process_event->timestamp <= sim->max_time) {
                         sim->event_queue.push(thread_process_event);
-                        assigned_core->busy = true;
-                        worker.busy_cores++;
                         // output_file << "Assigned Thread ID: " << current_event->thread->id << " to free Core ID: " << assigned_core->id << " for processing at Server Node ID: " << this->id << std::endl;
                     }
                 } else {
@@ -74,7 +74,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 }
             } else {
                 // No free core available, try to add the thread to the worker's thread queue
-                if ((int)worker.thread_queue.size() < worker.thread_buffer_size) {
+                if (worker.thread_buffer_size > 0 && (int)worker.thread_queue.size() < worker.thread_buffer_size) {
                     if (scheduling_policy == "SJF") {
                         worker.thread_queue.push({current_event->request->remaining_service_time, current_event->thread});
                     } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
@@ -102,8 +102,6 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Event* departure_event = new Event(current_event->timestamp + service_time_remaining, EventType::DEPARTURE, current_event->request, current_event->thread, current_event->core, this);
                 if(departure_event->timestamp <= sim->max_time) {
                     sim->event_queue.push(departure_event);
-                    current_event->core->busy = true;
-                    worker.busy_cores++;
                     current_event->request->remaining_service_time = 0;
                     current_event->core->total_busy_time += service_time_remaining;
                     // output_file << "Scheduled DEPARTURE event for Request ID: " << current_event->request->id << " at time " << current_event->timestamp + service_time_remaining << std::endl;
@@ -116,8 +114,6 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Event* context_switch_event = new Event(current_event->timestamp + current_event->core->core_context_switch_time, EventType::CONTEXT_SWITCH, current_event->request, current_event->thread, current_event->core, this);
                 if(context_switch_event->timestamp <= sim->max_time) {
                     sim->event_queue.push(context_switch_event);
-                    current_event->core->busy = true;
-                    worker.busy_cores++;
                     current_event->request->remaining_service_time -= current_event->core->core_context_switch_time;
                     current_event->core->total_busy_time += current_event->core->core_context_switch_time;
                     // output_file << "Scheduled CONTEXT_SWITCH event for Thread ID: " << current_event->thread->id << " at time " << current_event->timestamp + current_event->core->core_context_switch_time << std::endl;
@@ -177,34 +173,38 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
                 Thread* next_thread = current_event->core->thread_buffer.top().second;
                 current_event->core->thread_buffer.pop();
                 Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
+                worker.busy_cores++;
+                current_event->core->busy = true;
                 if(thread_process_event->timestamp <= sim->max_time) {
                     sim->event_queue.push(thread_process_event);
-                    worker.busy_cores++;
-                    current_event->core->busy = true;
                     // output_file << "After departure, scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
                 }
             }
             if (!worker.thread_queue.empty()) {
-                Thread* next_thread = worker.thread_queue.top().second;
-                worker.thread_queue.pop();
-                if (scheduling_policy == "SJF") {
-                    current_event->core->thread_buffer.push({next_thread->current_request->remaining_service_time, next_thread});
-                } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
-                    current_event->core->thread_buffer.push({current_event->timestamp, next_thread});
-                } else {
-                    std::cerr << "Unknown scheduling policy!" << std::endl;
-                    exit(1);
-                }
-                // output_file << "Departure: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
                 if (!current_event->core->busy) {
+                    Thread* next_thread = worker.thread_queue.top().second;
+                    worker.thread_queue.pop();
                     Event* thread_process_event = new Event(current_event->timestamp, EventType::THREAD_PROCESS, next_thread->current_request, next_thread, current_event->core, this);
+                    worker.busy_cores++;
+                    current_event->core->busy = true;
                     if(thread_process_event->timestamp <= sim->max_time) {
                         sim->event_queue.push(thread_process_event);
-                        worker.busy_cores++;
-                        current_event->core->busy = true;
                         // output_file << "Departure: Scheduled Thread ID: " << next_thread->id << " for processing on Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
                     }
                 }
+                if ((int)current_event->core->thread_buffer.size() < current_event->core->thread_buffer_size) {
+                    Thread* next_thread = worker.thread_queue.top().second;
+                    worker.thread_queue.pop();
+                    if (scheduling_policy == "SJF") {
+                        current_event->core->thread_buffer.push({next_thread->current_request->remaining_service_time, next_thread});
+                    } else if (scheduling_policy == "FCFS" || scheduling_policy == "RR") {
+                        current_event->core->thread_buffer.push({current_event->timestamp, next_thread});
+                    } else {
+                        std::cerr << "Unknown scheduling policy!" << std::endl;
+                        exit(1);
+                    }
+                }
+                // output_file << "Departure: Moved Thread ID: " << current_event->thread->id << " to the thread buffer of Core ID: " << current_event->core->id << " at Server Node ID: " << this->id << std::endl;
             } 
             if (!receiver.request_queue.empty()) {
                 Request* next_request = receiver.request_queue.top().second;

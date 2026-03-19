@@ -22,7 +22,7 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Average Response Time (ms)')
     py.grid()
-    py.savefig('avg_response_time.png')
+    py.savefig('{}_avg_response_time.png'.format(input_file.split('.')[0]))
 
     # Plot total_throughput vs user_count
     py.figure(figsize=(10, 6))
@@ -31,7 +31,7 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Total Throughput (requests/sec)')
     py.grid()
-    py.savefig('total_throughput.png')
+    py.savefig('{}_total_throughput.png'.format(input_file.split('.')[0]))
 
     # Plot drop_percentage vs user_count
     py.figure(figsize=(10, 6))
@@ -40,7 +40,27 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Drop Percentage (%)')
     py.grid()
-    py.savefig('drop_percentage.png')
+    py.savefig('{}_drop_percentage.png'.format(input_file.split('.')[0]))
+
+    # Plot response_time vs throughput
+    py.figure(figsize=(10, 6))
+    py.plot(total_throughput, avg_response_time, marker='o')
+    py.title('Average Response Time vs Total Throughput')
+    py.xlabel('Total Throughput (requests/sec)')
+    py.ylabel('Average Response Time (ms)')
+    py.grid()
+    py.savefig('{}_response_time_vs_throughput.png'.format(input_file.split('.')[0]))
+
+    # Plot server_utilization vs throughput for each server
+    for i in range(num_servers):
+        server_utilization = data[:, 6 + i]
+        py.figure(figsize=(10, 6))
+        py.plot(total_throughput, server_utilization, marker='o')
+        py.title(f'Server {i} Utilization vs Total Throughput')
+        py.xlabel('Total Throughput (requests/sec)')
+        py.ylabel(f'Server {i} Utilization (%)')
+        py.grid()
+        py.savefig('{}_server_{}_utilization_vs_throughput.png'.format(input_file.split('.')[0], i))
 
     # Iterate through each server and plot server_utilization vs user_count
     for i in range(num_servers):
@@ -51,8 +71,8 @@ def plot_graphs(input_file):
         py.xlabel('User Count')
         py.ylabel(f'Server {i} Utilization (%)')
         py.grid()
-        py.savefig(f'server_{i}_utilization.png')
+        py.savefig('{}_server_{}_utilization.png'.format(input_file.split('.')[0], i))
 
 if __name__ == "__main__":
-    input_file = 'withoutresend.csv'  # Change this to your actual input file
+    input_file = 'assgn1.csv'  # Change this to your actual input file
     plot_graphs(input_file)

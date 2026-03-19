@@ -68,7 +68,10 @@ Worker::~Worker() {
 
 bool Worker::has_free_core() {
     for (Core* core : cores) {
-        if (!core->busy || (int)core->thread_buffer.size() < core->thread_buffer_size) {
+        if (!core->busy) {
+            return true;
+        }
+        if (core->thread_buffer_size > 0 && (int)core->thread_buffer.size() < core->thread_buffer_size) {
             return true;
         }
     }
