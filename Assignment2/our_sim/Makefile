@@ -18,4 +18,4 @@ $(TARGET): $(OBJS) main.cpp
 	$(CXX) $(CXXFLAGS) -c $<
 
 clean:
-	rm -f *.o $(TARGET) last_event.txt last_event_details.txt core_buffer_details.txt response_times.txt *.csv *.png
+	rm -f *.o $(TARGET) last_event.txt last_event_details.txt core_buffer_details.txt response_times.txt 

@@ -14,6 +14,7 @@ public:
     double service_time;
     double remaining_service_time;
     double departure_time;
+    double entry_time;
     Request(int user_id, double arrival_time, double service_time);
     ~Request();
 };

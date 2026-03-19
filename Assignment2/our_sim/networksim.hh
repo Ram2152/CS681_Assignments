@@ -19,7 +19,7 @@ class NetworkSim {
     void print_config();
     void run();
     void set_num_users(int ClientNodeNum, int num_users);
-    std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>> print_stats();
+    std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>, std::vector<double>> print_stats();
     ~NetworkSim();
 };
 

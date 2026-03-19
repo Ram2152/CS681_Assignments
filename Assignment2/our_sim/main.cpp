@@ -68,6 +68,7 @@ int main(int argc, char* argv[]) {
     std::vector<std::vector<double>> total_throughputs((sim.max_num_users - sim.min_num_users) / sim.step_size + 1, std::vector<double>());
     std::vector<std::vector<double>> drop_rates((sim.max_num_users - sim.min_num_users) / sim.step_size + 1, std::vector<double>());
     std::vector<std::vector<std::vector<std::tuple<int, int, double>>>> all_cpu_times((sim.max_num_users - sim.min_num_users) / sim.step_size + 1, std::vector<std::vector<std::tuple<int, int, double>>>());
+    std::vector<std::vector<std::vector<double>>> all_total_time_by_requests_per_server_node((sim.max_num_users - sim.min_num_users) / sim.step_size + 1, std::vector<std::vector<double>>());
 
     // In a run, iterate from 5 users to 200 users, and for each user count, call sim.run() and sim.print_stats() to get the stats and write it to a csv file. The csv file should have the following columns: user_count, avg_response_time, good_throughput, bad_throughput, total_throughput, drop_percentage, server_0_utilization, server_1_utilization, server_2_utilization, server_3_utilization. The server_x_utilization columns should contain the overall utilization of each server node (total busy time of all cores divided by (number of cores * max_time)). The csv file should be named "simulation_results.csv". After all runs are done, calculate the confidence intervals for the average response time at 90%, 95%, and 99% confidence levels and print them to the console.
 
@@ -76,9 +77,19 @@ int main(int argc, char* argv[]) {
     for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
         csv_file << "server_" << server_id << "_utilization,";
     }
+    for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+        csv_file << "average_number_of_requests_in_server_" << server_id << ",";
+    }
     // Add 6 headers for confidence intervals of average response time at 90%, 95%, and 99% confidence levels
-    csv_file << "ci_90_lower,ci_90_upper,ci_95_lower,ci_95_upper,ci_99_lower,ci_99_upper";
+    csv_file << "ci_90_lower,ci_90_upper,ci_95_lower,ci_95_upper,ci_99_lower,ci_99_upper,N_calculated_from_little_s_law,N_calculated_from_simulation";
+    if (sim.server_nodes.size() == 1) {
+        csv_file << ",R_calculated_from_mva,R_calculated_from_simulation";
+    }
     csv_file << std::endl;
+
+    // Verify MVA 
+    // R(N) = S * (1 + Q(N-1)) where S is the average service time and Q(N-1) is the average number of requests in the system with N-1 users. We can calculate S as the total busy time of all cores divided by the total number of requests served. We can calculate Q(N-1) as the average total time spent by requests in the server nodes divided by the average response time.
+    double previous_number_of_requests_in_system = 0;
 
     for (int user_count = sim.min_num_users; user_count <= sim.max_num_users; user_count += sim.step_size) {
         sim.set_num_users(0, user_count);
@@ -94,6 +105,7 @@ int main(int argc, char* argv[]) {
             total_throughputs[index].push_back(std::get<3>(stats));
             drop_rates[index].push_back(std::get<4>(stats));
             all_cpu_times[index].push_back(std::get<5>(stats));
+            all_total_time_by_requests_per_server_node[index].push_back(std::get<6>(stats));
         }
 
         double average_resp_time = 0;
@@ -103,6 +115,7 @@ int main(int argc, char* argv[]) {
         double average_drop_percentage = 0;
         std::vector<double> average_cpu_times(sim.server_nodes.size(), 0);
         std::vector<double> average_server_utilizations(sim.server_nodes.size(), 0);
+        std::vector<double> average_total_time_by_requests_per_server_node(sim.server_nodes.size(), 0);
 
         average_resp_time = std::accumulate(avg_response_times[index].begin(), avg_response_times[index].end(), 0.0) / avg_response_times[index].size();
         average_good_throughput = std::accumulate(good_throughputs[index].begin(), good_throughputs[index].end(), 0.0) / good_throughputs[index].size();
@@ -127,18 +140,39 @@ int main(int argc, char* argv[]) {
             average_cpu_times[server_id] = average_busy_time;
             average_server_utilizations[server_id] = (average_busy_time / (sim.server_nodes[server_id]->worker.cores.size() * sim.max_time)) * 100;
         }
+        for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+            double average_time_by_requests = 0;
+            for (const auto& run_total_time_by_requests : all_total_time_by_requests_per_server_node[index]) {
+                average_time_by_requests += run_total_time_by_requests[server_id];
+            }
+            average_time_by_requests /= sim.max_time; // Average total time spent by requests in this server node across all runs
+            average_total_time_by_requests_per_server_node[server_id] = average_time_by_requests;
+        }
 
         // Write to CSV
         csv_file << user_count << "," << average_resp_time << "," << average_good_throughput << "," << average_bad_throughput << "," << average_total_throughput << "," << average_drop_percentage;
         for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
             csv_file << "," << average_server_utilizations[server_id];
         }
+        for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+            csv_file << "," << average_total_time_by_requests_per_server_node[server_id];
+        }
         auto [ci_90_lower, ci_90_upper] = calculate_confidence_interval(avg_response_times[index], 0.90);
         auto [ci_95_lower, ci_95_upper] = calculate_confidence_interval(avg_response_times[index], 0.95);
         auto [ci_99_lower, ci_99_upper] = calculate_confidence_interval(avg_response_times[index], 0.99);
 
         csv_file << "," << ci_90_lower << "," << ci_90_upper << "," << ci_95_lower << "," << ci_95_upper << "," << ci_99_lower << "," << ci_99_upper;
+        double average_number_of_requests_in_system = 0;
+        for(int server_id = 0; server_id < (int)sim.server_nodes.size(); server_id++) {
+            average_number_of_requests_in_system += average_total_time_by_requests_per_server_node[server_id];
+        }
+        csv_file << "," << average_total_throughput * average_resp_time << "," << average_number_of_requests_in_system;
+        if (sim.server_nodes.size() == 1) {
+            csv_file << "," << sim.server_nodes[0]->service_time_dist->sample() * (1 + previous_number_of_requests_in_system) << "," << average_resp_time;
+        }
         csv_file << std::endl;
+
+        previous_number_of_requests_in_system = average_total_throughput * average_resp_time;
     }
     return 0;
 }

@@ -5,9 +5,9 @@
     "nodes": [
         {
             "node_type": "CLIENT",
-            "min_num_users": 5,
+            "min_num_users": 1,
             "max_num_users": 350,
-            "step_size": 5,
+            "step_size": 1,
             "think_time_distribution_type": "DETERMINISTIC",
             "think_time_distribution_params": [6],
             "min_timeout": 5,
@@ -33,5 +33,5 @@
         [0, 1],
         [1, 0]
     ],
-    "output_file": "help.csv"
+    "output_file": "sample.csv"
 }

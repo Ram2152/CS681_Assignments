@@ -74,5 +74,5 @@ def plot_graphs(input_file):
         py.savefig('{}_server_{}_utilization.png'.format(input_file.split('.')[0], i))
 
 if __name__ == "__main__":
-    input_file = 'assgn1.csv'  # Change this to your actual input file
+    input_file = 'tester.csv'  # Change this to your actual input file
     plot_graphs(input_file)

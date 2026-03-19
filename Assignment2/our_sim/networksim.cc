@@ -281,11 +281,12 @@ void NetworkSim::run() {
     Request::id_counter = 0;
 }
 
-std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>> NetworkSim::print_stats() {
+std::tuple<double, double, double, double, double, std::vector<std::tuple<int, int, double>>, std::vector<double>> NetworkSim::print_stats() {
     double total_response_time = 0;
     int bad_completed_requests = 0;
     int good_completed_requests = 0;
     int dropped_requests = 0;
+    std::vector<double> total_time_by_requests_per_server_node(server_nodes.size(), 0);
     // int total_requests = all_requests.size();
     // std::cout << "Total Requests: " << total_requests << std::endl;
 
@@ -326,7 +327,10 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
     //     std::cout << "Request ID: " << request->id << ", User ID: " << request->user_id << ", Arrival Time: " << request->arrival_time << ", Service Time: " << request->service_time << ", Departure Time: " << request->departure_time << std::endl;
     // }
 
-    
+    for (int i = 0; i < (int)server_nodes.size(); i++) {
+        total_time_by_requests_per_server_node[i] = server_nodes[i]->total_time_by_requests;
+        // std::cout << "Total time spent by requests in Server Node ID " << server_nodes[i]->id << ": " << total_time_by_requests_per_server_node[i] << std::endl;
+    }
     
     for (ServerNode* server_node : server_nodes) {
         while (!server_node->worker.thread_queue.empty()) {
@@ -366,9 +370,10 @@ std::tuple<double, double, double, double, double, std::vector<std::tuple<int, i
         for (Core* core : server_node->worker.cores) {
             core->total_busy_time = 0;
         }
+        server_node->total_time_by_requests = 0;
     }
 
-    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_percentage, cpu_times};
+    return {average_response_time, good_throughput, bad_throughput, total_throughput, dropped_request_percentage, cpu_times, total_time_by_requests_per_server_node};
 }
 
 NetworkSim::~NetworkSim() {

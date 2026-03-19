@@ -27,6 +27,7 @@ public:
     Worker worker;
     Distribution* service_time_dist;
     std::string scheduling_policy;
+    double total_time_by_requests = 0; // Total time spent by requests in this server node (for average Number of requests in the system calculation)
 
     ServerNode(int num_threads,
                int receiver_buffer_size,

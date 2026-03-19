@@ -17,6 +17,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
     switch (current_event->type) {
         case EventType::ARRIVAL: {
             // output_file << "[Time " << current_event->timestamp << "] Request ID: " << current_event->request->id << " arrived at Server Node ID: " << this->id << std::endl;
+            current_event->request->entry_time = current_event->timestamp; // Set the entry time when the request arrives at the server node
             current_event->request->service_time = this->service_time_dist->sample();
             current_event->request->remaining_service_time = current_event->request->service_time;
             if (receiver.thread_pool.has_idle_thread()) {
@@ -161,6 +162,7 @@ void ServerNode::process(Event* current_event, NetworkSim* sim) {
             current_event->core->busy = false;
             worker.busy_cores--;
             current_event->thread->current_request = nullptr; // Free the thread
+            this->total_time_by_requests += (current_event->timestamp - current_event->request->entry_time); // Update total time spent by requests in this server node for average Number of requests in the system calculation
             
             Node* next_node = this->get_next();
             Event* next_event = new Event(current_event->timestamp, EventType::ARRIVAL, current_event->request, nullptr, nullptr, next_node);
