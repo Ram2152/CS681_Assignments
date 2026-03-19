@@ -1,14 +1,19 @@
+import os
+
 import matplotlib.pyplot as py
 import numpy as np
 
 # Read from input_file (which is a csv) and has columns
 # user_count,avg_response_time,good_throughput,bad_throughput,total_throughput,drop_percentage,server_0_utilization,ci_90_lower,ci_90_upper,ci_95_lower,ci_95_upper,ci_99_lower,ci_99_upper
 # And plot the graphs for avg_response_time, total_throughput, drop_percentage, server_0_utilization with respect to user_count
-def plot_graphs(input_file):
+# Create a folder with the name of the input file (without extension) and save all the graphs in that folder
+def plot_graphs(input_file, num_servers=1):
+    output_folder = input_file.split('.')[0]
+    os.makedirs(output_folder, exist_ok=True)
+
     # Get number of servers from the header of the csv file
     with open(input_file, 'r') as f:
         header = f.readline().strip().split(',')
-        num_servers = len(header) - 12  # Subtract the first 12 columns
     data = np.genfromtxt(input_file, delimiter=',', skip_header=1)
     user_count = data[:, 0]
     avg_response_time = data[:, 1]
@@ -22,7 +27,7 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Average Response Time (ms)')
     py.grid()
-    py.savefig('{}_avg_response_time.png'.format(input_file.split('.')[0]))
+    py.savefig('{}/{}_avg_response_time.png'.format(output_folder, input_file.split('.')[0]))
 
     # Plot total_throughput vs user_count
     py.figure(figsize=(10, 6))
@@ -31,7 +36,7 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Total Throughput (requests/sec)')
     py.grid()
-    py.savefig('{}_total_throughput.png'.format(input_file.split('.')[0]))
+    py.savefig('{}/{}_total_throughput.png'.format(output_folder, input_file.split('.')[0]))
 
     # Plot drop_percentage vs user_count
     py.figure(figsize=(10, 6))
@@ -40,7 +45,7 @@ def plot_graphs(input_file):
     py.xlabel('User Count')
     py.ylabel('Drop Percentage (%)')
     py.grid()
-    py.savefig('{}_drop_percentage.png'.format(input_file.split('.')[0]))
+    py.savefig('{}/{}_drop_percentage.png'.format(output_folder, input_file.split('.')[0]))
 
     # Plot response_time vs throughput
     py.figure(figsize=(10, 6))
@@ -49,7 +54,17 @@ def plot_graphs(input_file):
     py.xlabel('Total Throughput (requests/sec)')
     py.ylabel('Average Response Time (ms)')
     py.grid()
-    py.savefig('{}_response_time_vs_throughput.png'.format(input_file.split('.')[0]))
+    py.savefig('{}/{}_response_time_vs_throughput.png'.format(output_folder, input_file.split('.')[0]))
+
+    # Plot total number of requests in the system vs user_count
+    total_requests = data[:, 6 + num_servers + 6 + num_servers]
+    py.figure(figsize=(10, 6))
+    py.plot(user_count, total_requests, marker='o')
+    py.title('Total Number of Requests in the System vs User Count')
+    py.xlabel('User Count')
+    py.ylabel('Total Number of Requests in the System')
+    py.grid()
+    py.savefig('{}/{}_total_requests.png'.format(output_folder, input_file.split('.')[0]))
 
     # Plot server_utilization vs throughput for each server
     for i in range(num_servers):
@@ -60,7 +75,7 @@ def plot_graphs(input_file):
         py.xlabel('Total Throughput (requests/sec)')
         py.ylabel(f'Server {i} Utilization (%)')
         py.grid()
-        py.savefig('{}_server_{}_utilization_vs_throughput.png'.format(input_file.split('.')[0], i))
+        py.savefig('{}/{}_server_{}_utilization_vs_throughput.png'.format(output_folder, input_file.split('.')[0], i))
 
     # Iterate through each server and plot server_utilization vs user_count
     for i in range(num_servers):
@@ -71,8 +86,19 @@ def plot_graphs(input_file):
         py.xlabel('User Count')
         py.ylabel(f'Server {i} Utilization (%)')
         py.grid()
-        py.savefig('{}_server_{}_utilization.png'.format(input_file.split('.')[0], i))
+        py.savefig('{}/{}_server_{}_utilization.png'.format(output_folder, input_file.split('.')[0], i))
+
+    # Plot number_in_server vs user_count for each server
+    for i in range(num_servers):
+        number_in_server = data[:, 6 + num_servers + i]
+        py.figure(figsize=(10, 6))
+        py.plot(user_count, number_in_server, marker='o')
+        py.title(f'Number in Server {i} vs User Count')
+        py.xlabel('User Count')
+        py.ylabel(f'Number in Server {i}')
+        py.grid()
+        py.savefig('{}/{}_number_in_server_{}.png'.format(output_folder, input_file.split('.')[0], i))
 
 if __name__ == "__main__":
     input_file = 'tester.csv'  # Change this to your actual input file
-    plot_graphs(input_file)
+    plot_graphs(input_file, num_servers=1)  # Change num_servers if you have more than 1 server

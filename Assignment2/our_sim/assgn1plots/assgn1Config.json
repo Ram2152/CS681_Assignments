@@ -33,5 +33,5 @@
         [0, 1],
         [1, 0]
     ],
-    "output_file": "assgn1_all_users.csv"
+    "output_file": "sample.csv"
 }
